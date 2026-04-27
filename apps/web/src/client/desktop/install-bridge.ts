@@ -320,6 +320,12 @@ export function installDesktopBridge(): void {
         }>('/api/skills/fetch-remote', 'POST', { url });
         return result.content;
       },
+      // The web runtime does not expose the desktop-only tarball IPC.  Throw
+      // here so the renderer transparently falls back to the per-file raw
+      // fetch path (loadGitHubSkillRepo catches this and switches over).
+      fetchGithubTarball: async () => {
+        throw new Error('fetchGithubTarball is not available in the web runtime');
+      },
       installToPlatform: async (
         _platform: 'claude' | 'cursor',
         _name: string,

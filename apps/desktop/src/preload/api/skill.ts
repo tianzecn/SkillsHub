@@ -89,6 +89,17 @@ export const skillApi = {
     ),
   fetchRemoteContent: (url: string) =>
     ipcRenderer.invoke(IPC_CHANNELS.SKILL_FETCH_REMOTE_CONTENT, url),
+  fetchGithubTarball: (
+    owner: string,
+    repo: string,
+    branch: string,
+  ): Promise<Array<{ path: string; content: string }>> =>
+    ipcRenderer.invoke(
+      IPC_CHANNELS.SKILL_FETCH_GITHUB_TARBALL,
+      owner,
+      repo,
+      branch,
+    ),
   saveToRepo: (skillName: string, sourceDir: string) =>
     ipcRenderer.invoke(IPC_CHANNELS.SKILL_SAVE_TO_REPO, skillName, sourceDir),
   listLocalFiles: (skillId: string): Promise<SkillLocalFileTreeEntry[]> =>

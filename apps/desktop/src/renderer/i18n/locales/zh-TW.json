@@ -1074,6 +1074,7 @@
     "loadingRemoteStore": "正在拉取 Claude Code 远程技能列表...",
     "loadingOpenAiStore": "正在載入 OpenAI Codex Skills...",
     "remoteStoreLoadFailed": "拉取远程商店失败",
+    "remoteStorePartialFailure": "{{count}} 個技能檔案下載失敗，點擊重新整理重試。",
     "storeSourceAdded": "商店已添加",
     "storeSourceRequired": "请填写商店名称和地址",
     "noCustomStores": "還沒有自訂商店",

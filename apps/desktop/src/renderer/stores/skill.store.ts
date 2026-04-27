@@ -285,10 +285,41 @@ async function syncRemoteGitHubSkillRepo(
   skillId: string,
   sourceUrl?: string,
   contentUrl?: string,
+  prefetchedTarballFiles?: Array<{ path: string; content: string }> | null,
 ): Promise<void> {
   const location = parseGitHubSkillLocation(sourceUrl, contentUrl);
   if (!location || !location.directoryPath) {
     return;
+  }
+
+  const directoryPrefix = `${location.directoryPath}/`;
+
+  try {
+    const tarballFiles =
+      prefetchedTarballFiles ??
+      (await window.api.skill.fetchGithubTarball(
+        location.owner,
+        location.repo,
+        location.branch,
+      ));
+    await runWithConcurrency(
+      tarballFiles,
+      REMOTE_REPO_SYNC_CONCURRENCY,
+      async (file) => {
+        if (!file.path.startsWith(directoryPrefix)) return;
+        const relativePath = file.path.slice(directoryPrefix.length);
+        if (!relativePath || !shouldSyncRemoteRepoFile(relativePath)) return;
+        await window.api.skill.writeLocalFile(skillId, relativePath, file.content, {
+          skipVersionSnapshot: true,
+        });
+      },
+    );
+    return;
+  } catch (error) {
+    console.warn(
+      `Failed to sync registry skill repo via GitHub tarball; falling back to raw file sync:`,
+      error,
+    );
   }
 
   const treeRaw = await window.api.skill.fetchRemoteContent(
@@ -297,7 +328,6 @@ async function syncRemoteGitHubSkillRepo(
   const treeData = parseJson<{
     tree?: Array<{ path?: string; type?: string }>;
   }>(treeRaw || "{}", {});
-  const directoryPrefix = `${location.directoryPath}/`;
   const files = Array.isArray(treeData.tree)
     ? treeData.tree.filter(
         (entry): entry is { path: string; type: string } =>
@@ -316,8 +346,14 @@ async function syncRemoteGitHubSkillRepo(
         return;
       }
       const rawUrl = `https://raw.githubusercontent.com/${location.owner}/${location.repo}/${location.branch}/${file.path}`;
-      const content = await window.api.skill.fetchRemoteContent(rawUrl);
-      await window.api.skill.writeLocalFile(skillId, relativePath, content);
+      try {
+        const content = await window.api.skill.fetchRemoteContent(rawUrl);
+        await window.api.skill.writeLocalFile(skillId, relativePath, content, {
+          skipVersionSnapshot: true,
+        });
+      } catch (error) {
+        console.warn(`Failed to sync registry skill file "${file.path}":`, error);
+      }
     },
   );
 }
@@ -1040,7 +1076,40 @@ export const useSkillStore = create<SkillState>()(
       installRegistrySkill: async (regSkill) => {
         try {
           let effectiveContent = regSkill.content;
-          if (regSkill.content_url) {
+          const location = parseGitHubSkillLocation(
+            regSkill.source_url,
+            regSkill.content_url,
+          );
+          let tarballFiles: Array<{ path: string; content: string }> | null = null;
+
+          if (location) {
+            try {
+              tarballFiles = await window.api.skill.fetchGithubTarball(
+                location.owner,
+                location.repo,
+                location.branch,
+              );
+              const skillPath = location.directoryPath
+                ? `${location.directoryPath}/SKILL.md`
+                : "SKILL.md";
+              const tarballSkill = tarballFiles.find(
+                (file) => file.path === skillPath,
+              );
+              if (tarballSkill?.content.trim()) {
+                effectiveContent = tarballSkill.content;
+              }
+            } catch (fetchError) {
+              console.warn(
+                `Failed to fetch GitHub tarball for "${regSkill.slug}", falling back to cached/raw SKILL.md content:`,
+                fetchError,
+              );
+            }
+          }
+
+          if (
+            !hasMeaningfulSkillBody(effectiveContent) &&
+            regSkill.content_url
+          ) {
             try {
               const freshContent = await window.api.skill.fetchRemoteContent(
                 regSkill.content_url,
@@ -1100,6 +1169,7 @@ export const useSkillStore = create<SkillState>()(
                 newSkill.id,
                 regSkill.source_url,
                 regSkill.content_url,
+                tarballFiles,
               );
             } catch (repoError) {
               console.warn(

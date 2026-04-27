@@ -27,6 +27,7 @@ import {
   loadGitHubSkillRepo,
   parseFrontmatter,
   toTitleCase,
+  type SkillFetchFailure,
 } from "../../services/github-skill-store";
 import { useSkillStore } from "../../stores/skill.store";
 import { useSettingsStore } from "../../stores/settings.store";
@@ -358,15 +359,37 @@ export function SkillStore() {
     Boolean(selectedCustomSource);
 
   const loadGitHubRepoSkills = useCallback(
-    async (repoUrl: string): Promise<RegistrySkill[]> => {
+    async (
+      repoUrl: string,
+      partialFailures?: SkillFetchFailure[],
+    ): Promise<RegistrySkill[]> => {
+      // Old preload bundles (pre-tarball) won't have fetchGithubTarball.
+      // Guard the lookup so we don't surface a TypeError before falling back.
+      const tarballFetcher =
+        typeof window.api?.skill?.fetchGithubTarball === "function"
+          ? (owner: string, repo: string, branch: string) =>
+              window.api.skill.fetchGithubTarball(owner, repo, branch)
+          : undefined;
       try {
         return await loadGitHubSkillRepo(repoUrl, {
           fetchRemoteContent: (url) => window.api.skill.fetchRemoteContent(url),
+          fetchGithubTarball: tarballFetcher,
           registrySkills,
           rateLimitMessage: t(
             "skill.remoteStoreRateLimitHint",
             "GitHub API rate limit reached. Try again in a few minutes, or add a GitHub token in settings.",
           ),
+          onPartialFailure: (failures) => {
+            // Record into the caller-supplied bucket so the UI can surface a
+            // banner with the failed-count next to the (still-rendered) cards.
+            if (partialFailures) partialFailures.push(...failures);
+            // Always log the full failure list so support can inspect why
+            // 14/22 files dropped — silent failures were the original bug.
+            console.warn(
+              `[SkillStore] ${failures.length} SKILL.md file(s) failed to download from ${repoUrl}:`,
+              failures,
+            );
+          },
         });
       } catch (error) {
         if (
@@ -616,10 +639,11 @@ export function SkillStore() {
         setLoadingSourceId(sourceId);
         try {
           let skillsForSource: RegistrySkill[] = [];
+          const partialFailures: SkillFetchFailure[] = [];
           if (source.type === "git-repo") {
             skillsForSource = isLikelyLocalSource(source.url)
               ? await loadLocalDirectoryStore(source.url)
-              : await loadGitHubRepoSkills(source.url);
+              : await loadGitHubRepoSkills(source.url, partialFailures);
           } else if (source.type === "skills-sh") {
             skillsForSource = await loadSkillsShStore();
           } else if (source.type === "marketplace-json") {
@@ -628,9 +652,21 @@ export function SkillStore() {
             skillsForSource = await loadLocalDirectoryStore(source.url);
           }
 
+          // Surface partial failures so the user understands why the count is
+          // lower than expected.  Successful skills still render alongside the
+          // banner, and the existing Retry button re-fetches the whole batch.
+          const partialFailureMessage =
+            partialFailures.length > 0
+              ? t(
+                  "skill.remoteStorePartialFailure",
+                  "{{count}} skill file(s) failed to download. Click refresh to retry.",
+                  { count: partialFailures.length },
+                )
+              : null;
+
           setRemoteStoreEntry(sourceId, {
             loadedAt: Date.now(),
-            error: null,
+            error: partialFailureMessage,
             skills: skillsForSource,
           });
         } catch (error) {

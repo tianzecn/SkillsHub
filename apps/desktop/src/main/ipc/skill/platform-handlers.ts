@@ -230,4 +230,33 @@ export function registerSkillPlatformHandlers(context: SkillIPCContext): void {
       return await SkillInstaller.fetchRemoteContent(url);
     },
   );
+
+  ipcMain.handle(
+    IPC_CHANNELS.SKILL_FETCH_GITHUB_TARBALL,
+    async (_, owner: string, repo: string, branch: string) => {
+      // Owner / repo / branch all flow into a URL path component, so reject
+      // anything containing slashes or whitespace before reaching the network.
+      const isSafeSegment = (value: unknown): value is string =>
+        typeof value === "string" &&
+        value.length > 0 &&
+        value.length <= 200 &&
+        /^[A-Za-z0-9._/-]+$/.test(value) &&
+        !value.includes("..");
+
+      if (!isSafeSegment(owner)) {
+        throw new Error("skill:fetchGithubTarball received an invalid owner");
+      }
+      if (!isSafeSegment(repo)) {
+        throw new Error("skill:fetchGithubTarball received an invalid repo");
+      }
+      if (!isSafeSegment(branch)) {
+        throw new Error("skill:fetchGithubTarball received an invalid branch");
+      }
+      return await SkillInstaller.fetchGithubTarballSkillFiles(
+        owner,
+        repo,
+        branch,
+      );
+    },
+  );
 }

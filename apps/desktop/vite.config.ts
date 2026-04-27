@@ -11,14 +11,14 @@ export default defineConfig({
       {
         entry: "src/main/index.ts",
         onstart(args) {
-          // Start Electron, vite-plugin-electron will auto-set VITE_DEV_SERVER_URL
-          // 启动 Electron，vite-plugin-electron 会自动设置 VITE_DEV_SERVER_URL
-          // Override default argv to remove "--no-sandbox" which causes
-          // "不支持的资源类型: --no-sandbox" on macOS with Electron 33.
-          // The default startup() uses [".", "--no-sandbox"] but --no-sandbox
-          // is a Linux-only Chromium flag and unnecessary on macOS/Windows.
-          // 覆盖默认 argv，移除 "--no-sandbox" 参数。该参数仅适用于 Linux，
-          // 在 macOS/Windows 上会导致 Electron 启动失败。
+          // Let vite-plugin-electron own the dev Electron process.  Starting
+          // another process from package.json races the single-instance lock;
+          // the losing process exits and can cause Vite to shut down, leaving
+          // the renderer unable to load route chunks (white-screen on pages
+          // such as the skill store).
+          //
+          // Override the default argv to omit `--no-sandbox`, which Electron
+          // 33 can mis-handle as an app URL on macOS.
           args.startup(["."]);
         },
         vite: {

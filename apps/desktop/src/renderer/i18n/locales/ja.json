@@ -1074,6 +1074,7 @@
     "loadingRemoteStore": "Loading Claude Code skills from the remote source...",
     "loadingOpenAiStore": "Loading OpenAI Codex skills from the remote source...",
     "remoteStoreLoadFailed": "Failed to load remote store",
+    "remoteStorePartialFailure": "{{count}} 個のスキルファイルのダウンロードに失敗しました。更新ボタンを押してください。",
     "storeSourceAdded": "Store added",
     "storeSourceRequired": "Please enter both a store name and URL",
     "noCustomStores": "カスタムストアはまだありません",

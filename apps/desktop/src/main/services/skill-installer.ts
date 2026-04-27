@@ -45,12 +45,14 @@ import {
   validateSkillName,
 } from "./skill-installer-internal";
 import {
+  fetchGithubTarballSkillFiles,
   fetchRemoteText,
   isBlockedHostname,
   isPrivateAddress,
   isPrivateIPv4,
   isPrivateIPv6,
   resolvePublicAddress,
+  type GithubTarballSkillFile,
 } from "./skill-installer-remote";
 import {
   createLocalRepoDir,
@@ -780,5 +782,18 @@ export class SkillInstaller {
       console.error("Failed to fetch remote content from remote URL:", error);
       throw error;
     }
+  }
+
+  /**
+   * Download a GitHub repository tarball in a single request and return the
+   * subset of files PromptHub treats as skill manifests.  Replaces the
+   * previous N-file fan-out for store loading.
+   */
+  static async fetchGithubTarballSkillFiles(
+    owner: string,
+    repo: string,
+    branch: string,
+  ): Promise<GithubTarballSkillFile[]> {
+    return fetchGithubTarballSkillFiles(owner, repo, branch);
   }
 }

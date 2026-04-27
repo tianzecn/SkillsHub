@@ -472,8 +472,14 @@ export function CreateSkillModal({ isOpen, onClose }: CreateSkillModalProps) {
         );
       }
 
+      const tarballFetcher =
+        typeof window.api?.skill?.fetchGithubTarball === "function"
+          ? (owner: string, repo: string, branch: string) =>
+              window.api.skill.fetchGithubTarball(owner, repo, branch)
+          : undefined;
       const scannedSkills = await loadGitHubSkillRepo(githubUrl.trim(), {
         fetchRemoteContent: (url) => window.api.skill.fetchRemoteContent(url),
+        fetchGithubTarball: tarballFetcher,
         registrySkills: BUILTIN_SKILL_REGISTRY,
         rateLimitMessage: t(
           "skill.remoteStoreRateLimitHint",

@@ -8,6 +8,7 @@ import * as dns from "dns/promises";
 import * as http from "http";
 import * as https from "https";
 import * as nodeNet from "net";
+import { parseTarGzip, stripTopLevelDir, type TarFileEntry } from "./tar-extract";
 
 // ==================== Constants ====================
 
@@ -15,11 +16,19 @@ const REMOTE_FETCH_TIMEOUT_MS = 30_000;
 /** Total time allowed for reading the response body (protects against slowloris) */
 const REMOTE_FETCH_TRANSFER_TIMEOUT_MS = 60_000;
 const REMOTE_FETCH_MAX_BYTES = 5 * 1024 * 1024;
+/**
+ * Tarballs are larger than individual SKILL.md files (a single repo can
+ * easily be ~10-30 MB compressed once binary assets are included).  Cap at
+ * 50 MB to keep memory pressure reasonable while comfortably accommodating
+ * realistic skill repositories.
+ */
+const REMOTE_TARBALL_MAX_BYTES = 50 * 1024 * 1024;
 const REMOTE_FETCH_MAX_REDIRECTS = 5;
 const REMOTE_FETCH_TRUSTED_HOSTS = new Set([
   "api.github.com",
   "github.com",
   "raw.githubusercontent.com",
+  "codeload.github.com",
   "skills.sh",
   "www.skills.sh",
 ]);
@@ -384,4 +393,237 @@ export async function fetchRemoteText(
     request.on("error", (error) => reject(error));
     request.end();
   });
+}
+
+/**
+ * Fetch a remote URL into a Buffer.  Same SSRF / timeout / redirect handling
+ * as {@link fetchRemoteText} but returns raw bytes and accepts a larger size
+ * limit.  Used to download GitHub tarballs.
+ */
+export async function fetchRemoteBuffer(
+  targetUrl: string,
+  options: { maxBytes?: number } = {},
+  redirectCount = 0,
+): Promise<Buffer> {
+  const maxBytes = options.maxBytes ?? REMOTE_FETCH_MAX_BYTES;
+  if (redirectCount > REMOTE_FETCH_MAX_REDIRECTS) {
+    throw new Error("Too many redirects while fetching remote content");
+  }
+
+  const parsedUrl = new URL(targetUrl);
+  if (parsedUrl.protocol !== "https:") {
+    throw new Error("Only HTTPS URLs are allowed");
+  }
+
+  const resolvedAddress = await resolvePublicAddress(parsedUrl.hostname);
+  const requestModule = getRequestModule(parsedUrl.protocol);
+
+  return new Promise((resolve, reject) => {
+    const request = requestModule.request(
+      {
+        protocol: parsedUrl.protocol,
+        hostname: resolvedAddress.address,
+        family: resolvedAddress.family,
+        servername: parsedUrl.hostname,
+        port: parsedUrl.port
+          ? Number(parsedUrl.port)
+          : parsedUrl.protocol === "https:"
+            ? 443
+            : 80,
+        path: toRequestPath(parsedUrl),
+        method: "GET",
+        headers: {
+          Host: parsedUrl.host,
+          "User-Agent": "PromptHub/remote-skill-fetch",
+          Accept: "application/octet-stream, */*;q=0.1",
+        },
+        timeout: REMOTE_FETCH_TIMEOUT_MS,
+      },
+      (response) => {
+        const statusCode = response.statusCode ?? 0;
+        const location = response.headers.location;
+
+        if (
+          statusCode >= 300 &&
+          statusCode < 400 &&
+          typeof location === "string"
+        ) {
+          response.resume();
+          const nextUrl = new URL(location, parsedUrl).toString();
+          void fetchRemoteBuffer(nextUrl, options, redirectCount + 1)
+            .then(resolve)
+            .catch(reject);
+          return;
+        }
+
+        if (statusCode !== 200) {
+          const rateLimitRemaining = getSingleHeaderValue(
+            response.headers["x-ratelimit-remaining"],
+          );
+          if (
+            parsedUrl.hostname === "api.github.com" &&
+            (statusCode === 403 || statusCode === 429) &&
+            rateLimitRemaining === "0"
+          ) {
+            response.resume();
+            reject(new Error("GitHub API rate limit reached"));
+            return;
+          }
+          response.resume();
+          reject(new Error(`HTTP ${statusCode} fetching remote content`));
+          return;
+        }
+
+        const contentLengthHeader = response.headers["content-length"];
+        const contentLength = Array.isArray(contentLengthHeader)
+          ? Number.parseInt(contentLengthHeader[0], 10)
+          : Number.parseInt(contentLengthHeader ?? "", 10);
+        if (Number.isFinite(contentLength) && contentLength > maxBytes) {
+          response.resume();
+          reject(new Error("Remote content exceeds size limit"));
+          return;
+        }
+
+        let receivedBytes = 0;
+        const chunks: Buffer[] = [];
+
+        const transferTimer = setTimeout(() => {
+          response.destroy(
+            new Error(
+              "Remote content transfer timed out (slowloris protection)",
+            ),
+          );
+        }, REMOTE_FETCH_TRANSFER_TIMEOUT_MS);
+
+        response.on("data", (chunk: Buffer) => {
+          receivedBytes += chunk.length;
+          if (receivedBytes > maxBytes) {
+            response.destroy(new Error("Remote content exceeds size limit"));
+            return;
+          }
+          chunks.push(chunk);
+        });
+        response.on("end", () => {
+          clearTimeout(transferTimer);
+          resolve(Buffer.concat(chunks));
+        });
+        response.on("error", (error) => {
+          clearTimeout(transferTimer);
+          reject(error);
+        });
+      },
+    );
+
+    request.on("timeout", () => {
+      request.destroy(new Error("Remote content request timed out"));
+    });
+    request.on("error", (error) => reject(error));
+    request.end();
+  });
+}
+
+// ==================== GitHub tarball ====================
+
+export interface GithubTarballSkillFile {
+  /** Path inside the repository (top-level dir already stripped). */
+  path: string;
+  /** UTF-8 decoded SKILL.md / README.md content. */
+  content: string;
+}
+
+function isWantedSkillFile(path: string): boolean {
+  if (path.endsWith("/SKILL.md") || path === "SKILL.md") return true;
+  // README.md only at the repo root, mirrors the legacy fallback path.
+  if (/^readme\.md$/i.test(path)) return true;
+  return false;
+}
+
+function shouldIncludeTarballFile(path: string): boolean {
+  if (isWantedSkillFile(path)) return true;
+  const ext = path.includes(".")
+    ? path.slice(path.lastIndexOf(".")).toLowerCase()
+    : "";
+  return (
+    ext === "" ||
+    [
+      ".md",
+      ".mdx",
+      ".txt",
+      ".json",
+      ".yaml",
+      ".yml",
+      ".toml",
+      ".ini",
+      ".cfg",
+      ".js",
+      ".mjs",
+      ".cjs",
+      ".ts",
+      ".tsx",
+      ".jsx",
+      ".py",
+      ".rb",
+      ".go",
+      ".rs",
+      ".java",
+      ".kt",
+      ".swift",
+      ".sh",
+      ".bash",
+      ".zsh",
+      ".ps1",
+      ".html",
+      ".css",
+      ".svg",
+      ".xml",
+      ".sql",
+      ".r",
+      ".lua",
+      ".php",
+      ".c",
+      ".cpp",
+      ".h",
+      ".hpp",
+      ".cs",
+      ".lock",
+      ".gitignore",
+    ].includes(ext)
+  );
+}
+
+/**
+ * Download a GitHub repository tarball in a single request and return the
+ * subset of files PromptHub treats as skill manifests.  This avoids the
+ * 22-files / 22-requests fan-out that previously caused partial failures
+ * and slow loads against raw.githubusercontent.com.
+ */
+export async function fetchGithubTarballSkillFiles(
+  owner: string,
+  repo: string,
+  branch: string,
+): Promise<GithubTarballSkillFile[]> {
+  const safeOwner = encodeURIComponent(owner);
+  const safeRepo = encodeURIComponent(repo);
+  const safeBranch = encodeURIComponent(branch);
+  const tarballUrl = `https://codeload.github.com/${safeOwner}/${safeRepo}/tar.gz/refs/heads/${safeBranch}`;
+
+  const buffer = await fetchRemoteBuffer(tarballUrl, {
+    maxBytes: REMOTE_TARBALL_MAX_BYTES,
+  });
+
+  let entries: TarFileEntry[];
+  try {
+    entries = stripTopLevelDir(parseTarGzip(buffer));
+  } catch (error) {
+    throw new Error(
+      `Failed to parse GitHub tarball: ${error instanceof Error ? error.message : String(error)}`,
+    );
+  }
+
+  return entries
+    .filter((entry) => shouldIncludeTarballFile(entry.path))
+    .map((entry) => ({
+      path: entry.path,
+      content: entry.content.toString("utf-8"),
+    }));
 }
