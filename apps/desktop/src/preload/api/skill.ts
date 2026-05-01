@@ -100,6 +100,19 @@ export const skillApi = {
       repo,
       branch,
     ),
+  cloneGithubDirectory: (
+    owner: string,
+    repo: string,
+    branch: string,
+    directoryPath: string,
+  ): Promise<Array<{ path: string; content: string }>> =>
+    ipcRenderer.invoke(
+      IPC_CHANNELS.SKILL_CLONE_GITHUB_DIRECTORY,
+      owner,
+      repo,
+      branch,
+      directoryPath,
+    ),
   saveToRepo: (skillName: string, sourceDir: string) =>
     ipcRenderer.invoke(IPC_CHANNELS.SKILL_SAVE_TO_REPO, skillName, sourceDir),
   listLocalFiles: (skillId: string): Promise<SkillLocalFileTreeEntry[]> =>

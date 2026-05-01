@@ -4,17 +4,23 @@
  * Contains network-level utilities (DNS resolution, private IP detection,
  * HTTP(S) fetching) and the high-level install-from-remote methods.
  */
+import { spawn } from "child_process";
 import * as dns from "dns/promises";
+import * as fs from "fs/promises";
 import * as http from "http";
 import * as https from "https";
 import * as nodeNet from "net";
+import * as os from "os";
+import * as path from "path";
 import { parseTarGzip, stripTopLevelDir, type TarFileEntry } from "./tar-extract";
 
 // ==================== Constants ====================
 
 const REMOTE_FETCH_TIMEOUT_MS = 30_000;
-/** Total time allowed for reading the response body (protects against slowloris) */
-const REMOTE_FETCH_TRANSFER_TIMEOUT_MS = 60_000;
+/** Idle time allowed while reading the response body (protects against slowloris) */
+const REMOTE_FETCH_TRANSFER_IDLE_TIMEOUT_MS = 60_000;
+/** Larger idle timeout for GitHub tarballs on slow networks. */
+const REMOTE_TARBALL_TRANSFER_IDLE_TIMEOUT_MS = 180_000;
 const REMOTE_FETCH_MAX_BYTES = 5 * 1024 * 1024;
 /**
  * Tarballs are larger than individual SKILL.md files (a single repo can
@@ -220,6 +226,65 @@ function getSingleHeaderValue(
   return Array.isArray(header) ? header[0] : header;
 }
 
+function createIdleTimeout(
+  onTimeout: () => void,
+  timeoutMs: number,
+): { refresh: () => void; clear: () => void } {
+  let timer = setTimeout(onTimeout, timeoutMs);
+  return {
+    refresh: () => {
+      clearTimeout(timer);
+      timer = setTimeout(onTimeout, timeoutMs);
+    },
+    clear: () => clearTimeout(timer),
+  };
+}
+
+function isRetriableRemoteFetchError(error: unknown): boolean {
+  const message = error instanceof Error ? error.message : String(error);
+  if (message.includes("GitHub API rate limit reached")) return false;
+  if (message.includes("Remote content exceeds size limit")) return false;
+  if (message.includes("Only HTTPS URLs are allowed")) return false;
+  if (message.includes("Access to local network addresses is not allowed")) return false;
+  if (message.includes("Access to internal network addresses is not allowed")) return false;
+  return (
+    message.includes("timed out") ||
+    message.includes("ECONNRESET") ||
+    message.includes("ETIMEDOUT") ||
+    message.includes("EAI_AGAIN") ||
+    message.includes("ENOTFOUND") ||
+    message.includes("socket hang up") ||
+    message.includes("HTTP 429") ||
+    message.includes("HTTP 500") ||
+    message.includes("HTTP 502") ||
+    message.includes("HTTP 503") ||
+    message.includes("HTTP 504")
+  );
+}
+
+async function retryRemoteFetch<T>(
+  operation: () => Promise<T>,
+  options: { retries?: number; initialDelayMs?: number } = {},
+): Promise<T> {
+  const retries = options.retries ?? 2;
+  const initialDelayMs = options.initialDelayMs ?? 500;
+  let lastError: unknown;
+
+  for (let attempt = 0; attempt <= retries; attempt += 1) {
+    try {
+      return await operation();
+    } catch (error) {
+      lastError = error;
+      if (attempt === retries || !isRetriableRemoteFetchError(error)) break;
+      await new Promise((resolve) => {
+        setTimeout(resolve, initialDelayMs * 2 ** attempt);
+      });
+    }
+  }
+
+  throw lastError;
+}
+
 export async function resolvePublicAddress(
   hostname: string,
 ): Promise<ResolvedAddress> {
@@ -359,16 +424,19 @@ export async function fetchRemoteText(
         let receivedBytes = 0;
         const chunks: Buffer[] = [];
 
-        // Guard against slowloris: cap total time spent reading the body
-        const transferTimer = setTimeout(() => {
+        // Guard against slowloris: timeout only when the stream is idle.
+        // Large but healthy downloads should not be killed just because the
+        // total transfer takes longer than one minute on a slow network.
+        const transferTimer = createIdleTimeout(() => {
           response.destroy(
             new Error(
               "Remote content transfer timed out (slowloris protection)",
             ),
           );
-        }, REMOTE_FETCH_TRANSFER_TIMEOUT_MS);
+        }, REMOTE_FETCH_TRANSFER_IDLE_TIMEOUT_MS);
 
         response.on("data", (chunk: Buffer) => {
+          transferTimer.refresh();
           receivedBytes += chunk.length;
           if (receivedBytes > REMOTE_FETCH_MAX_BYTES) {
             response.destroy(new Error("Remote content exceeds size limit"));
@@ -377,11 +445,11 @@ export async function fetchRemoteText(
           chunks.push(chunk);
         });
         response.on("end", () => {
-          clearTimeout(transferTimer);
+          transferTimer.clear();
           resolve(Buffer.concat(chunks).toString("utf-8"));
         });
         response.on("error", (error) => {
-          clearTimeout(transferTimer);
+          transferTimer.clear();
           reject(error);
         });
       },
@@ -402,7 +470,7 @@ export async function fetchRemoteText(
  */
 export async function fetchRemoteBuffer(
   targetUrl: string,
-  options: { maxBytes?: number } = {},
+  options: { maxBytes?: number; transferIdleTimeoutMs?: number } = {},
   redirectCount = 0,
 ): Promise<Buffer> {
   const maxBytes = options.maxBytes ?? REMOTE_FETCH_MAX_BYTES;
@@ -487,15 +555,16 @@ export async function fetchRemoteBuffer(
         let receivedBytes = 0;
         const chunks: Buffer[] = [];
 
-        const transferTimer = setTimeout(() => {
+        const transferTimer = createIdleTimeout(() => {
           response.destroy(
             new Error(
               "Remote content transfer timed out (slowloris protection)",
             ),
           );
-        }, REMOTE_FETCH_TRANSFER_TIMEOUT_MS);
+        }, options.transferIdleTimeoutMs ?? REMOTE_FETCH_TRANSFER_IDLE_TIMEOUT_MS);
 
         response.on("data", (chunk: Buffer) => {
+          transferTimer.refresh();
           receivedBytes += chunk.length;
           if (receivedBytes > maxBytes) {
             response.destroy(new Error("Remote content exceeds size limit"));
@@ -504,11 +573,11 @@ export async function fetchRemoteBuffer(
           chunks.push(chunk);
         });
         response.on("end", () => {
-          clearTimeout(transferTimer);
+          transferTimer.clear();
           resolve(Buffer.concat(chunks));
         });
         response.on("error", (error) => {
-          clearTimeout(transferTimer);
+          transferTimer.clear();
           reject(error);
         });
       },
@@ -597,6 +666,11 @@ function shouldIncludeTarballFile(path: string): boolean {
  * 22-files / 22-requests fan-out that previously caused partial failures
  * and slow loads against raw.githubusercontent.com.
  */
+const githubTarballRequestCache = new Map<
+  string,
+  Promise<GithubTarballSkillFile[]>
+>();
+
 export async function fetchGithubTarballSkillFiles(
   owner: string,
   repo: string,
@@ -606,24 +680,43 @@ export async function fetchGithubTarballSkillFiles(
   const safeRepo = encodeURIComponent(repo);
   const safeBranch = encodeURIComponent(branch);
   const tarballUrl = `https://codeload.github.com/${safeOwner}/${safeRepo}/tar.gz/refs/heads/${safeBranch}`;
+  const cacheKey = `${owner}/${repo}@${branch}`;
 
-  const buffer = await fetchRemoteBuffer(tarballUrl, {
-    maxBytes: REMOTE_TARBALL_MAX_BYTES,
-  });
-
-  let entries: TarFileEntry[];
-  try {
-    entries = stripTopLevelDir(parseTarGzip(buffer));
-  } catch (error) {
-    throw new Error(
-      `Failed to parse GitHub tarball: ${error instanceof Error ? error.message : String(error)}`,
-    );
+  const inFlightRequest = githubTarballRequestCache.get(cacheKey);
+  if (inFlightRequest) {
+    return inFlightRequest;
   }
 
-  return entries
-    .filter((entry) => shouldIncludeTarballFile(entry.path))
-    .map((entry) => ({
-      path: entry.path,
-      content: entry.content.toString("utf-8"),
-    }));
+  const requestPromise = retryRemoteFetch(async () => {
+    const buffer = await fetchRemoteBuffer(tarballUrl, {
+      maxBytes: REMOTE_TARBALL_MAX_BYTES,
+      transferIdleTimeoutMs: REMOTE_TARBALL_TRANSFER_IDLE_TIMEOUT_MS,
+    });
+
+    let entries: TarFileEntry[];
+    try {
+      entries = stripTopLevelDir(parseTarGzip(buffer));
+    } catch (error) {
+      throw new Error(
+        `Failed to parse GitHub tarball: ${error instanceof Error ? error.message : String(error)}`,
+      );
+    }
+
+    return entries
+      .filter((entry) => shouldIncludeTarballFile(entry.path))
+      .map((entry) => ({
+        path: entry.path,
+        content: entry.content.toString("utf-8"),
+      }));
+  });
+
+  githubTarballRequestCache.set(cacheKey, requestPromise);
+
+  try {
+    return await requestPromise;
+  } finally {
+    githubTarballRequestCache.delete(cacheKey);
+  }
 }
+
+

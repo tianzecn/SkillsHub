@@ -49,8 +49,8 @@ export type SkillStoreView = "my-skills" | "distribution" | "store";
 const TRANSLATION_CACHE_MAX_SIZE = 200;
 const TRANSLATION_CACHE_EVICT_COUNT = 50;
 const TRANSLATION_CACHE_TTL = 7 * 24 * 60 * 60 * 1000; // 7 days in ms
-const REMOTE_CONTENT_CONCURRENCY = 6;
-const REMOTE_REPO_SYNC_CONCURRENCY = 6;
+const REMOTE_CONTENT_CONCURRENCY = 3;
+const REMOTE_REPO_SYNC_CONCURRENCY = 3;
 
 interface ParsedGitHubSkillLocation {
   owner: string;
@@ -229,6 +229,41 @@ function parseGitHubSkillLocation(
   return null;
 }
 
+async function fetchRemoteContentWithRetry(
+  url: string,
+  options: { retries?: number; initialDelayMs?: number } = {},
+): Promise<string> {
+  const retries = options.retries ?? 2;
+  const initialDelayMs = options.initialDelayMs ?? 500;
+  let lastError: unknown;
+
+  for (let attempt = 0; attempt <= retries; attempt += 1) {
+    try {
+      return await window.api.skill.fetchRemoteContent(url);
+    } catch (error) {
+      lastError = error;
+      const message = error instanceof Error ? error.message : String(error);
+      const isRetriable =
+        message.includes("timed out") ||
+        message.includes("ECONNRESET") ||
+        message.includes("ETIMEDOUT") ||
+        message.includes("EAI_AGAIN") ||
+        message.includes("socket hang up") ||
+        message.includes("HTTP 429") ||
+        message.includes("HTTP 500") ||
+        message.includes("HTTP 502") ||
+        message.includes("HTTP 503") ||
+        message.includes("HTTP 504");
+      if (attempt === retries || !isRetriable) break;
+      await new Promise((resolve) => {
+        setTimeout(resolve, initialDelayMs * 2 ** attempt);
+      });
+    }
+  }
+
+  throw lastError;
+}
+
 function shouldSyncRemoteRepoFile(relativePath: string): boolean {
   const ext = relativePath.includes(".")
     ? relativePath.slice(relativePath.lastIndexOf(".")).toLowerCase()
@@ -295,19 +330,28 @@ async function syncRemoteGitHubSkillRepo(
   const directoryPrefix = `${location.directoryPath}/`;
 
   try {
-    const tarballFiles =
+    const repoFiles =
       prefetchedTarballFiles ??
       (await window.api.skill.fetchGithubTarball(
         location.owner,
         location.repo,
         location.branch,
       ));
+    const filesForDirectory = repoFiles.some((file) =>
+      file.path.startsWith(directoryPrefix),
+    )
+      ? repoFiles
+          .filter((file) => file.path.startsWith(directoryPrefix))
+          .map((file) => ({
+            path: file.path.slice(directoryPrefix.length),
+            content: file.content,
+          }))
+      : repoFiles;
     await runWithConcurrency(
-      tarballFiles,
+      filesForDirectory,
       REMOTE_REPO_SYNC_CONCURRENCY,
       async (file) => {
-        if (!file.path.startsWith(directoryPrefix)) return;
-        const relativePath = file.path.slice(directoryPrefix.length);
+        const relativePath = file.path;
         if (!relativePath || !shouldSyncRemoteRepoFile(relativePath)) return;
         await window.api.skill.writeLocalFile(skillId, relativePath, file.content, {
           skipVersionSnapshot: true,
@@ -322,7 +366,7 @@ async function syncRemoteGitHubSkillRepo(
     );
   }
 
-  const treeRaw = await window.api.skill.fetchRemoteContent(
+  const treeRaw = await fetchRemoteContentWithRetry(
     `https://api.github.com/repos/${location.owner}/${location.repo}/git/trees/${location.branch}?recursive=1`,
   );
   const treeData = parseJson<{
@@ -347,7 +391,7 @@ async function syncRemoteGitHubSkillRepo(
       }
       const rawUrl = `https://raw.githubusercontent.com/${location.owner}/${location.repo}/${location.branch}/${file.path}`;
       try {
-        const content = await window.api.skill.fetchRemoteContent(rawUrl);
+        const content = await fetchRemoteContentWithRetry(rawUrl);
         await window.api.skill.writeLocalFile(skillId, relativePath, content, {
           skipVersionSnapshot: true,
         });
@@ -1003,7 +1047,7 @@ export const useSkillStore = create<SkillState>()(
       getRegistrySkillUpdateStatus: async (regSkill) => {
         let remoteContent = regSkill.content;
         if (regSkill.content_url) {
-          const freshContent = await window.api.skill.fetchRemoteContent(
+          const freshContent = await fetchRemoteContentWithRetry(
             regSkill.content_url,
           );
           if (freshContent.trim()) {
@@ -1083,15 +1127,16 @@ export const useSkillStore = create<SkillState>()(
           let tarballFiles: Array<{ path: string; content: string }> | null = null;
 
           if (location) {
+            const skillPath = location.directoryPath
+              ? `${location.directoryPath}/SKILL.md`
+              : "SKILL.md";
+
             try {
               tarballFiles = await window.api.skill.fetchGithubTarball(
                 location.owner,
                 location.repo,
                 location.branch,
               );
-              const skillPath = location.directoryPath
-                ? `${location.directoryPath}/SKILL.md`
-                : "SKILL.md";
               const tarballSkill = tarballFiles.find(
                 (file) => file.path === skillPath,
               );
@@ -1100,9 +1145,29 @@ export const useSkillStore = create<SkillState>()(
               }
             } catch (fetchError) {
               console.warn(
-                `Failed to fetch GitHub tarball for "${regSkill.slug}", falling back to cached/raw SKILL.md content:`,
+                `Failed to fetch GitHub tarball for "${regSkill.slug}", falling back to git clone/raw SKILL.md content:`,
                 fetchError,
               );
+              try {
+                const clonedFiles = await window.api.skill.cloneGithubDirectory(
+                  location.owner,
+                  location.repo,
+                  location.branch,
+                  location.directoryPath,
+                );
+                tarballFiles = clonedFiles;
+                const clonedSkill = clonedFiles.find(
+                  (file) => file.path === "SKILL.md",
+                );
+                if (clonedSkill?.content.trim()) {
+                  effectiveContent = clonedSkill.content;
+                }
+              } catch (cloneError) {
+                console.warn(
+                  `Failed to clone GitHub directory for "${regSkill.slug}", falling back to cached/raw SKILL.md content:`,
+                  cloneError,
+                );
+              }
             }
           }
 
@@ -1111,7 +1176,7 @@ export const useSkillStore = create<SkillState>()(
             regSkill.content_url
           ) {
             try {
-              const freshContent = await window.api.skill.fetchRemoteContent(
+              const freshContent = await fetchRemoteContentWithRetry(
                 regSkill.content_url,
               );
               if (freshContent.trim()) {

@@ -326,6 +326,9 @@ export function installDesktopBridge(): void {
       fetchGithubTarball: async () => {
         throw new Error('fetchGithubTarball is not available in the web runtime');
       },
+      cloneGithubDirectory: async () => {
+        throw new Error('cloneGithubDirectory is not available in the web runtime');
+      },
       installToPlatform: async (
         _platform: 'claude' | 'cursor',
         _name: string,

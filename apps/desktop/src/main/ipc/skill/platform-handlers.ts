@@ -231,31 +231,68 @@ export function registerSkillPlatformHandlers(context: SkillIPCContext): void {
     },
   );
 
+  const isSafeGitHubSegment = (value: unknown): value is string =>
+    typeof value === "string" &&
+    value.length > 0 &&
+    value.length <= 200 &&
+    /^[A-Za-z0-9._/-]+$/.test(value) &&
+    !value.includes("..");
+
   ipcMain.handle(
     IPC_CHANNELS.SKILL_FETCH_GITHUB_TARBALL,
     async (_, owner: string, repo: string, branch: string) => {
       // Owner / repo / branch all flow into a URL path component, so reject
       // anything containing slashes or whitespace before reaching the network.
-      const isSafeSegment = (value: unknown): value is string =>
-        typeof value === "string" &&
-        value.length > 0 &&
-        value.length <= 200 &&
-        /^[A-Za-z0-9._/-]+$/.test(value) &&
-        !value.includes("..");
-
-      if (!isSafeSegment(owner)) {
+      if (!isSafeGitHubSegment(owner)) {
         throw new Error("skill:fetchGithubTarball received an invalid owner");
       }
-      if (!isSafeSegment(repo)) {
+      if (!isSafeGitHubSegment(repo)) {
         throw new Error("skill:fetchGithubTarball received an invalid repo");
       }
-      if (!isSafeSegment(branch)) {
+      if (!isSafeGitHubSegment(branch)) {
         throw new Error("skill:fetchGithubTarball received an invalid branch");
       }
       return await SkillInstaller.fetchGithubTarballSkillFiles(
         owner,
         repo,
         branch,
+      );
+    },
+  );
+
+  ipcMain.handle(
+    IPC_CHANNELS.SKILL_CLONE_GITHUB_DIRECTORY,
+    async (
+      _,
+      owner: string,
+      repo: string,
+      branch: string,
+      directoryPath: string,
+    ) => {
+      if (!isSafeGitHubSegment(owner)) {
+        throw new Error("skill:cloneGithubDirectory received an invalid owner");
+      }
+      if (!isSafeGitHubSegment(repo)) {
+        throw new Error("skill:cloneGithubDirectory received an invalid repo");
+      }
+      if (!isSafeGitHubSegment(branch)) {
+        throw new Error("skill:cloneGithubDirectory received an invalid branch");
+      }
+      if (
+        typeof directoryPath !== "string" ||
+        directoryPath.startsWith("/") ||
+        directoryPath.startsWith("-") ||
+        directoryPath.split("/").some((part) => part === "..")
+      ) {
+        throw new Error(
+          "skill:cloneGithubDirectory received an invalid directory path",
+        );
+      }
+      return await SkillInstaller.cloneGitHubDirectoryFiles(
+        owner,
+        repo,
+        branch,
+        directoryPath,
       );
     },
   );

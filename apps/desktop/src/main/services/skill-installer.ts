@@ -54,6 +54,7 @@ import {
   resolvePublicAddress,
   type GithubTarballSkillFile,
 } from "./skill-installer-remote";
+import { cloneGitHubDirectoryFiles, type ClonedGitHubFile } from "./skill-git-clone";
 import {
   createLocalRepoDir,
   createLocalRepoDirByPath,
@@ -795,5 +796,14 @@ export class SkillInstaller {
     branch: string,
   ): Promise<GithubTarballSkillFile[]> {
     return fetchGithubTarballSkillFiles(owner, repo, branch);
+  }
+
+  static async cloneGitHubDirectoryFiles(
+    owner: string,
+    repo: string,
+    branch: string,
+    directoryPath: string,
+  ): Promise<ClonedGitHubFile[]> {
+    return cloneGitHubDirectoryFiles(owner, repo, branch, directoryPath);
   }
 }
