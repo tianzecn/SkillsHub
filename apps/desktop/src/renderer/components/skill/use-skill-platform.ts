@@ -4,6 +4,7 @@ import type { SkillPlatform } from "@prompthub/shared/constants/platforms";
 import { useSkillStore } from "../../stores/skill.store";
 import { useSettingsStore } from "../../stores/settings.store";
 import { getRuntimeCapabilities } from "../../runtime";
+import { dispatchSkillPlatformStatusChange } from "./skill-platform-status-events";
 
 export type SkillInstallMode = "copy" | "symlink";
 
@@ -176,6 +177,7 @@ export function useSkillPlatform(
       }
 
       await refreshInstallStatus();
+      dispatchSkillPlatformStatusChange(skill.name);
       return { successCount, totalCount: platformIds.length };
     } finally {
       setIsBatchInstalling(false);
@@ -194,6 +196,7 @@ export function useSkillPlatform(
       if (!runtimeCapabilities.skillPlatformIntegration || !skill) return;
       await window.api.skill.uninstallMd(skill.name, platformId);
       await refreshInstallStatus();
+      dispatchSkillPlatformStatusChange(skill.name);
     },
     [refreshInstallStatus, runtimeCapabilities.skillPlatformIntegration, skill],
   );

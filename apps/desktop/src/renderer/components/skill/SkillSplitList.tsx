@@ -5,6 +5,7 @@ import {
   useEffect,
   useMemo,
   useRef,
+  useState,
 } from "react";
 import { useTranslation } from "react-i18next";
 import { List, type ListImperativeAPI } from "react-window";
@@ -25,15 +26,22 @@ import {
   PlusIcon,
 } from "lucide-react";
 import { SkillIcon } from "./SkillIcon";
+import { PlatformIcon } from "../ui/PlatformIcon";
+import {
+  SKILL_PLATFORM_STATUS_CHANGE_EVENT,
+  type SkillPlatformStatusChangeDetail,
+} from "./skill-platform-status-events";
 import {
   type SkillFilterType,
   useSkillStore,
 } from "../../stores/skill.store";
 import type { Skill, SkillSafetyLevel } from "@prompthub/shared/types";
+import type { SkillPlatform } from "@prompthub/shared/constants/platforms";
 import { getRuntimeCapabilities } from "../../runtime";
 
 const VIRTUALIZATION_THRESHOLD = 200;
 const ROW_HEIGHT = 84;
+const skillSplitPlatformStatusCache = new Map<string, Record<string, boolean>>();
 
 interface SkillSplitListProps {
   skills: Skill[];
@@ -62,6 +70,9 @@ interface SkillRowData {
   selectedSkillId: string | null;
   selectionMode: boolean;
   selectedSkillIds: Set<string>;
+  skillPlatformIntegration: boolean;
+  availablePlatforms: SkillPlatform[];
+  platformStatuses: Record<string, Record<string, boolean>>;
   onSelect: (skillId: string) => void;
   onToggleSelection?: (skillId: string) => void;
 }
@@ -94,6 +105,19 @@ function getSkillTags(skill: Skill): string[] {
     : [];
 }
 
+function normalizePlatformStatusMap(value: unknown): Record<string, boolean> {
+  if (!value || typeof value !== "object") {
+    return {};
+  }
+
+  return Object.fromEntries(
+    Object.entries(value).filter((entry): entry is [string, boolean] => {
+      const [, installed] = entry;
+      return typeof installed === "boolean";
+    }),
+  );
+}
+
 function SkillSplitRow({
   ariaAttributes,
   index,
@@ -102,12 +126,14 @@ function SkillSplitRow({
   selectedSkillId,
   selectionMode,
   selectedSkillIds,
+  skillPlatformIntegration,
+  availablePlatforms,
+  platformStatuses,
   onSelect,
   onToggleSelection,
 }: SkillRowProps) {
   const { t } = useTranslation();
   const toggleFavorite = useSkillStore((state) => state.toggleFavorite);
-  const deployedSkillNames = useSkillStore((state) => state.deployedSkillNames);
   const skill = skills[index];
   if (!skill) return null;
 
@@ -116,7 +142,13 @@ function SkillSplitRow({
   const safety = skill.safetyReport?.level
     ? getSafetyIconProps(skill.safetyReport.level)
     : null;
-  const deployedCount = deployedSkillNames.has(skill.name) ? 1 : 0;
+  const platformStatus = platformStatuses[skill.id] ?? {};
+  const totalPlatforms = availablePlatforms.length;
+  const installedPlatformCount =
+    totalPlatforms > 0
+      ? availablePlatforms.filter((platform) => platformStatus[platform.id])
+          .length
+      : 0;
 
   return (
     <div
@@ -183,10 +215,37 @@ function SkillSplitRow({
         <p className="mt-0.5 line-clamp-1 text-xs text-muted-foreground">
           {skill.description || t("skill.noDescription", "No description")}
         </p>
-        <div className="mt-1 flex items-center gap-1.5">
-          <span className="rounded-full bg-accent px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
-            {deployedCount}/5
-          </span>
+        <div className="mt-1 flex items-center gap-1.5 overflow-hidden">
+          {skillPlatformIntegration && totalPlatforms > 0 ? (
+            <div
+              className="flex shrink-0 items-center gap-1 rounded-full bg-accent px-1.5 py-0.5"
+              title={t("skill.platformIntegration", "Platform Integration")}
+            >
+              {availablePlatforms.slice(0, 3).map((platform) => {
+                const isInstalled = platformStatus[platform.id] === true;
+                return (
+                  <span
+                    key={platform.id}
+                    className="flex items-center justify-center"
+                    title={`${platform.name}: ${
+                      isInstalled
+                        ? t("skill.installed")
+                        : t("skill.notInstalled", "Not installed")
+                    }`}
+                  >
+                    <PlatformIcon
+                      platformId={platform.id}
+                      size={12}
+                      className={isInstalled ? "opacity-100" : "opacity-40"}
+                    />
+                  </span>
+                );
+              })}
+              <span className="ml-0.5 text-[10px] font-medium text-muted-foreground">
+                {installedPlatformCount}/{totalPlatforms}
+              </span>
+            </div>
+          ) : null}
           {getSkillTags(skill)
             .slice(0, 1)
             .map((tag) => (
@@ -264,6 +323,15 @@ export function SkillSplitList({
   const toggleFilterTag = useSkillStore((state) => state.toggleFilterTag);
   const clearFilterTags = useSkillStore((state) => state.clearFilterTags);
   const storeView = useSkillStore((state) => state.storeView);
+  const [platformStatuses, setPlatformStatuses] = useState<
+    Record<string, Record<string, boolean>>
+  >({});
+  const [supportedPlatforms, setSupportedPlatforms] = useState<SkillPlatform[]>(
+    [],
+  );
+  const [detectedPlatforms, setDetectedPlatforms] = useState<string[]>([]);
+  const [platformStatusRefreshNonce, setPlatformStatusRefreshNonce] =
+    useState(0);
 
   const availableTags = useMemo(
     () =>
@@ -273,6 +341,122 @@ export function SkillSplitList({
         .slice(0, 12),
     [allSkills],
   );
+
+  useEffect(() => {
+    const handlePlatformStatusChange = (event: Event): void => {
+      const detail = (event as CustomEvent<SkillPlatformStatusChangeDetail>)
+        .detail;
+      if (typeof detail?.skillName === "string") {
+        skillSplitPlatformStatusCache.delete(detail.skillName);
+      } else {
+        skillSplitPlatformStatusCache.clear();
+      }
+      setPlatformStatusRefreshNonce((nonce) => nonce + 1);
+    };
+
+    window.addEventListener(
+      SKILL_PLATFORM_STATUS_CHANGE_EVENT,
+      handlePlatformStatusChange,
+    );
+
+    return () => {
+      window.removeEventListener(
+        SKILL_PLATFORM_STATUS_CHANGE_EVENT,
+        handlePlatformStatusChange,
+      );
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!runtimeCapabilities.skillPlatformIntegration) {
+      setSupportedPlatforms([]);
+      setDetectedPlatforms([]);
+      return;
+    }
+
+    const loadPlatforms = async (): Promise<void> => {
+      try {
+        const platforms = await window.api.skill.getSupportedPlatforms();
+        setSupportedPlatforms(platforms);
+        const detected = await window.api.skill.detectPlatforms();
+        setDetectedPlatforms(detected);
+      } catch (error) {
+        console.error("Failed to load platforms:", error);
+      }
+    };
+
+    void loadPlatforms();
+  }, [runtimeCapabilities.skillPlatformIntegration]);
+
+  useEffect(() => {
+    if (!runtimeCapabilities.skillPlatformIntegration) {
+      setPlatformStatuses({});
+      return;
+    }
+
+    const loadStatuses = async (): Promise<void> => {
+      const nextStatuses = Object.fromEntries(
+        skills.map((skill) => [
+          skill.id,
+          skillSplitPlatformStatusCache.get(skill.name) ?? {},
+        ]),
+      );
+      setPlatformStatuses(nextStatuses);
+
+      const missingNames = Array.from(
+        new Set(
+          skills
+            .map((skill) => skill.name)
+            .filter((name) => !skillSplitPlatformStatusCache.has(name)),
+        ),
+      );
+
+      if (missingNames.length === 0) {
+        return;
+      }
+
+      try {
+        const statusByName = (await window.api.skill.getMdInstallStatusBatch(
+          missingNames,
+        )) as Record<string, unknown>;
+
+        for (const [name, status] of Object.entries(statusByName)) {
+          skillSplitPlatformStatusCache.set(
+            name,
+            normalizePlatformStatusMap(status),
+          );
+        }
+
+        setPlatformStatuses(
+          Object.fromEntries(
+            skills.map((skill) => [
+              skill.id,
+              skillSplitPlatformStatusCache.get(skill.name) ?? {},
+            ]),
+          ),
+        );
+      } catch (error) {
+        console.error("Failed to load install status batch:", error);
+      }
+    };
+
+    if (skills.length > 0) {
+      void loadStatuses();
+      return;
+    }
+
+    setPlatformStatuses({});
+  }, [
+    runtimeCapabilities.skillPlatformIntegration,
+    skills,
+    platformStatusRefreshNonce,
+  ]);
+
+  const availablePlatforms = useMemo(() => {
+    return supportedPlatforms.filter((platform) =>
+      detectedPlatforms.includes(platform.id),
+    );
+  }, [supportedPlatforms, detectedPlatforms]);
 
   useEffect(() => {
     if (!selectedSkillId) return;
@@ -421,7 +605,11 @@ export function SkillSplitList({
               </button>
             ) : null}
             <button
-              onClick={onRefresh}
+              onClick={() => {
+                skillSplitPlatformStatusCache.clear();
+                setPlatformStatusRefreshNonce((nonce) => nonce + 1);
+                void onRefresh();
+              }}
               className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-border bg-background text-muted-foreground hover:bg-accent hover:text-foreground"
               title={t("common.refresh")}
             >
@@ -458,6 +646,10 @@ export function SkillSplitList({
                 selectedSkillId,
                 selectionMode,
                 selectedSkillIds,
+                skillPlatformIntegration:
+                  runtimeCapabilities.skillPlatformIntegration,
+                availablePlatforms,
+                platformStatuses,
                 onSelect,
                 onToggleSelection,
               }}
@@ -474,6 +666,11 @@ export function SkillSplitList({
                   selectedSkillId={selectedSkillId}
                   selectionMode={selectionMode}
                   selectedSkillIds={selectedSkillIds}
+                  skillPlatformIntegration={
+                    runtimeCapabilities.skillPlatformIntegration
+                  }
+                  availablePlatforms={availablePlatforms}
+                  platformStatuses={platformStatuses}
                   onSelect={onSelect}
                   onToggleSelection={onToggleSelection}
                 />

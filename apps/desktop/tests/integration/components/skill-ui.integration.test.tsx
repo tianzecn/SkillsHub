@@ -2,8 +2,14 @@ import { act, fireEvent, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { SkillFullDetailPage } from "../../../src/renderer/components/skill/SkillFullDetailPage";
+import { SkillSplitList } from "../../../src/renderer/components/skill/SkillSplitList";
 import { SkillManager } from "../../../src/renderer/components/skill/SkillManager";
-import { createSkillFixture, createSkillLocalFileEntryFixture } from "../../fixtures/skills";
+import { SKILL_PLATFORM_STATUS_CHANGE_EVENT } from "../../../src/renderer/components/skill/skill-platform-status-events";
+import {
+  createSkillFixture,
+  createSkillLocalFileEntryFixture,
+  createSkillPlatformFixture,
+} from "../../fixtures/skills";
 import { renderWithI18n } from "../../helpers/i18n";
 import { installWindowMocks } from "../../helpers/window";
 
@@ -93,6 +99,9 @@ function createSkillStoreState(overrides: Partial<Record<string, unknown>> = {})
     translateContent: vi.fn().mockResolvedValue(undefined),
     getTranslation: vi.fn().mockReturnValue(null),
     clearTranslation: vi.fn(),
+    setSearchQuery: vi.fn(),
+    toggleFilterTag: vi.fn(),
+    clearFilterTags: vi.fn(),
     ...overrides,
   };
 }
@@ -172,6 +181,237 @@ describe("skill ui integration", () => {
     },
     15000,
   );
+
+  it("shows detected platform install status in the split list", async () => {
+    const skill = createSkillFixture({
+      id: "skill-split-platform-status",
+      name: "split-platform-status",
+    });
+    const getMdInstallStatusBatch = vi.fn().mockResolvedValue({
+      [skill.name]: {
+        claude: true,
+        cursor: false,
+      },
+    });
+
+    installWindowMocks({
+      api: {
+        skill: {
+          getSupportedPlatforms: vi.fn().mockResolvedValue([
+            createSkillPlatformFixture({
+              id: "claude",
+              name: "Claude Code",
+            }),
+            createSkillPlatformFixture({
+              id: "cursor",
+              name: "Cursor",
+            }),
+          ]),
+          detectPlatforms: vi.fn().mockResolvedValue(["claude", "cursor"]),
+          getMdInstallStatusBatch,
+        },
+      },
+    });
+
+    const skillStoreState = createSkillStoreState({
+      skills: [skill],
+      filterTags: [],
+    });
+    useSkillStoreMock.mockImplementation((selector) => selector(skillStoreState));
+
+    await act(async () => {
+      await renderWithI18n(
+        <SkillSplitList
+          skills={[skill]}
+          allSkills={[skill]}
+          selectedSkillId={null}
+          onSelect={vi.fn()}
+          onEnterSelectionMode={vi.fn()}
+          onCreateSkill={vi.fn()}
+          onRefresh={vi.fn()}
+          isRefreshing={false}
+          isScanning={false}
+          emptyTitle="No skills"
+          emptyHint="Create a skill"
+          width={320}
+        />,
+        { language: "en" },
+      );
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText("1/2")).toBeInTheDocument();
+    });
+    expect(getMdInstallStatusBatch).toHaveBeenCalledWith([skill.name]);
+  });
+
+  it("refreshes split list platform status after an install event", async () => {
+    const skill = createSkillFixture({
+      id: "skill-split-platform-live-refresh",
+      name: "split-platform-live-refresh",
+    });
+    let isInstalled = false;
+    const getMdInstallStatusBatch = vi
+      .fn()
+      .mockImplementation(async (skillNames: string[]) => {
+        return Object.fromEntries(
+          skillNames.map((skillName) => [
+            skillName,
+            {
+              claude: isInstalled,
+              cursor: false,
+            },
+          ]),
+        );
+      });
+
+    installWindowMocks({
+      api: {
+        skill: {
+          getSupportedPlatforms: vi.fn().mockResolvedValue([
+            createSkillPlatformFixture({
+              id: "claude",
+              name: "Claude Code",
+            }),
+            createSkillPlatformFixture({
+              id: "cursor",
+              name: "Cursor",
+            }),
+          ]),
+          detectPlatforms: vi.fn().mockResolvedValue(["claude", "cursor"]),
+          getMdInstallStatusBatch,
+        },
+      },
+    });
+
+    const skillStoreState = createSkillStoreState({
+      skills: [skill],
+      filterTags: [],
+    });
+    useSkillStoreMock.mockImplementation((selector) => selector(skillStoreState));
+
+    await act(async () => {
+      await renderWithI18n(
+        <SkillSplitList
+          skills={[skill]}
+          allSkills={[skill]}
+          selectedSkillId={null}
+          onSelect={vi.fn()}
+          onEnterSelectionMode={vi.fn()}
+          onCreateSkill={vi.fn()}
+          onRefresh={vi.fn()}
+          isRefreshing={false}
+          isScanning={false}
+          emptyTitle="No skills"
+          emptyHint="Create a skill"
+          width={320}
+        />,
+        { language: "en" },
+      );
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText("0/2")).toBeInTheDocument();
+    });
+
+    isInstalled = true;
+    await act(async () => {
+      window.dispatchEvent(
+        new CustomEvent(SKILL_PLATFORM_STATUS_CHANGE_EVENT, {
+          detail: { skillName: skill.name },
+        }),
+      );
+      await Promise.resolve();
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText("1/2")).toBeInTheDocument();
+    });
+    expect(getMdInstallStatusBatch).toHaveBeenCalledTimes(2);
+  });
+
+  it("clears cached split list platform status when refresh is clicked", async () => {
+    const skill = createSkillFixture({
+      id: "skill-split-platform-refresh-click",
+      name: "split-platform-refresh-click",
+    });
+    let isInstalled = false;
+    const getMdInstallStatusBatch = vi
+      .fn()
+      .mockImplementation(async (skillNames: string[]) => {
+        return Object.fromEntries(
+          skillNames.map((skillName) => [
+            skillName,
+            {
+              claude: isInstalled,
+              cursor: false,
+            },
+          ]),
+        );
+      });
+    const onRefresh = vi.fn().mockResolvedValue(undefined);
+
+    installWindowMocks({
+      api: {
+        skill: {
+          getSupportedPlatforms: vi.fn().mockResolvedValue([
+            createSkillPlatformFixture({
+              id: "claude",
+              name: "Claude Code",
+            }),
+            createSkillPlatformFixture({
+              id: "cursor",
+              name: "Cursor",
+            }),
+          ]),
+          detectPlatforms: vi.fn().mockResolvedValue(["claude", "cursor"]),
+          getMdInstallStatusBatch,
+        },
+      },
+    });
+
+    const skillStoreState = createSkillStoreState({
+      skills: [skill],
+      filterTags: [],
+    });
+    useSkillStoreMock.mockImplementation((selector) => selector(skillStoreState));
+
+    await act(async () => {
+      await renderWithI18n(
+        <SkillSplitList
+          skills={[skill]}
+          allSkills={[skill]}
+          selectedSkillId={null}
+          onSelect={vi.fn()}
+          onEnterSelectionMode={vi.fn()}
+          onCreateSkill={vi.fn()}
+          onRefresh={onRefresh}
+          isRefreshing={false}
+          isScanning={false}
+          emptyTitle="No skills"
+          emptyHint="Create a skill"
+          width={320}
+        />,
+        { language: "en" },
+      );
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText("0/2")).toBeInTheDocument();
+    });
+
+    isInstalled = true;
+    await act(async () => {
+      fireEvent.click(screen.getByTitle("Refresh"));
+      await Promise.resolve();
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText("1/2")).toBeInTheDocument();
+    });
+    expect(onRefresh).toHaveBeenCalledTimes(1);
+    expect(getMdInstallStatusBatch).toHaveBeenCalledTimes(2);
+  });
 
   it(
     "creates a snapshot from the detail page through the in-app modal",
