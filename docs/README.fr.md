@@ -5,10 +5,10 @@
   <p>Gestion de Prompts · Boutique de Skills · Installation multiplateforme · Contrôle de version · Tests multi-modèles — Espace de travail IA tout-en-un</p>
   
   <p>
-    <a href="https://github.com/legeling/PromptHub/stargazers"><img src="https://img.shields.io/github/stars/legeling/PromptHub?style=flat-square&color=yellow" alt="GitHub Stars"/></a>
-    <a href="https://github.com/legeling/PromptHub/network/members"><img src="https://img.shields.io/github/forks/legeling/PromptHub?style=flat-square" alt="GitHub Forks"/></a>
-    <a href="https://github.com/legeling/PromptHub/releases"><img src="https://img.shields.io/badge/version-v0.5.5-green?style=flat-square" alt="Version"/></a>
-    <a href="https://github.com/legeling/PromptHub/releases"><img src="https://img.shields.io/badge/download-0.5.5-blue?style=flat-square" alt="Téléchargements"/></a>
+    <a href="https://github.com/tianzecn/PromptHub/stargazers"><img src="https://img.shields.io/github/stars/tianzecn/PromptHub?style=flat-square&color=yellow" alt="GitHub Stars"/></a>
+    <a href="https://github.com/tianzecn/PromptHub/network/members"><img src="https://img.shields.io/github/forks/tianzecn/PromptHub?style=flat-square" alt="GitHub Forks"/></a>
+    <a href="https://github.com/tianzecn/PromptHub/releases"><img src="https://img.shields.io/badge/version-v0.5.6-green?style=flat-square" alt="Version"/></a>
+    <a href="https://github.com/tianzecn/PromptHub/releases"><img src="https://img.shields.io/badge/download-0.5.6-blue?style=flat-square" alt="Téléchargements"/></a>
     <img src="https://img.shields.io/badge/license-AGPL--3.0-blue?style=flat-square" alt="Licence : AGPL-3.0"/>
   </p>
   
@@ -41,16 +41,16 @@
 ## 📥 Téléchargement
 
 <div align="center">
-  <a href="https://github.com/legeling/PromptHub/releases">
+  <a href="https://github.com/tianzecn/PromptHub/releases">
     <img src="https://img.shields.io/badge/📥_Télécharger_maintenant-Releases-blue?style=for-the-badge" alt="Téléchargement"/>
   </a>
 </div>
 
 | Plateforme |                                                                                                                                                                                                             Téléchargement                                                                                                                                                                                                              |
 | :--------: | :-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------: |
-|  Windows   | [![Windows x64](https://img.shields.io/badge/Windows_x64-0078D6?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/legeling/PromptHub/releases/latest/download/PromptHub-Setup-0.5.5-x64.exe) [![Windows arm64](https://img.shields.io/badge/Windows_arm64-0078D6?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/legeling/PromptHub/releases/latest/download/PromptHub-Setup-0.5.5-arm64.exe) |
-|   macOS    |   [![macOS Apple Silicon](https://img.shields.io/badge/macOS_Apple_Silicon-000000?style=for-the-badge&logo=apple&logoColor=white)](https://github.com/legeling/PromptHub/releases/latest/download/PromptHub-0.5.5-arm64.dmg) [![macOS Intel](https://img.shields.io/badge/macOS_Intel-000000?style=for-the-badge&logo=apple&logoColor=white)](https://github.com/legeling/PromptHub/releases/latest/download/PromptHub-0.5.5-x64.dmg)   |
-|   Linux    |       [![Linux AppImage](https://img.shields.io/badge/Linux_AppImage-FCC624?style=for-the-badge&logo=linux&logoColor=black)](https://github.com/legeling/PromptHub/releases/latest/download/PromptHub-0.5.5-x64.AppImage) [![Linux deb](https://img.shields.io/badge/Linux_deb-FCC624?style=for-the-badge&logo=linux&logoColor=black)](https://github.com/legeling/PromptHub/releases/latest/download/prompthub_0.5.5_amd64.deb)        |
+|  Windows   | [![Windows x64](https://img.shields.io/badge/Windows_x64-0078D6?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/tianzecn/PromptHub/releases/latest/download/PromptHub-Setup-0.5.6-x64.exe) [![Windows arm64](https://img.shields.io/badge/Windows_arm64-0078D6?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/tianzecn/PromptHub/releases/latest/download/PromptHub-Setup-0.5.6-arm64.exe) |
+|   macOS    |   [![macOS Apple Silicon](https://img.shields.io/badge/macOS_Apple_Silicon-000000?style=for-the-badge&logo=apple&logoColor=white)](https://github.com/tianzecn/PromptHub/releases/latest/download/PromptHub-0.5.6-arm64.dmg) [![macOS Intel](https://img.shields.io/badge/macOS_Intel-000000?style=for-the-badge&logo=apple&logoColor=white)](https://github.com/tianzecn/PromptHub/releases/latest/download/PromptHub-0.5.6-x64.dmg)   |
+|   Linux    |       [![Linux AppImage](https://img.shields.io/badge/Linux_AppImage-FCC624?style=for-the-badge&logo=linux&logoColor=black)](https://github.com/tianzecn/PromptHub/releases/latest/download/PromptHub-0.5.6-x64.AppImage) [![Linux deb](https://img.shields.io/badge/Linux_deb-FCC624?style=for-the-badge&logo=linux&logoColor=black)](https://github.com/tianzecn/PromptHub/releases/latest/download/prompthub_0.5.6_amd64.deb)        |
 
 ---
 
@@ -120,13 +120,13 @@
 
 ### Téléchargement
 
-Téléchargez l'installateur pour votre plateforme depuis [Releases](https://github.com/legeling/PromptHub/releases) :
+Téléchargez l'installateur pour votre plateforme depuis [Releases](https://github.com/tianzecn/PromptHub/releases) :
 
 | Plateforme |                                                                                                                                                                                                             Téléchargement                                                                                                                                                                                                              |
 | :--------: | :-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------: |
-|  Windows   | [![Windows x64](https://img.shields.io/badge/Windows_x64-0078D6?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/legeling/PromptHub/releases/latest/download/PromptHub-Setup-0.5.5-x64.exe) [![Windows arm64](https://img.shields.io/badge/Windows_arm64-0078D6?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/legeling/PromptHub/releases/latest/download/PromptHub-Setup-0.5.5-arm64.exe) |
-|   macOS    |   [![macOS Apple Silicon](https://img.shields.io/badge/macOS_Apple_Silicon-000000?style=for-the-badge&logo=apple&logoColor=white)](https://github.com/legeling/PromptHub/releases/latest/download/PromptHub-0.5.5-arm64.dmg) [![macOS Intel](https://img.shields.io/badge/macOS_Intel-000000?style=for-the-badge&logo=apple&logoColor=white)](https://github.com/legeling/PromptHub/releases/latest/download/PromptHub-0.5.5-x64.dmg)   |
-|   Linux    |       [![Linux AppImage](https://img.shields.io/badge/Linux_AppImage-FCC624?style=for-the-badge&logo=linux&logoColor=black)](https://github.com/legeling/PromptHub/releases/latest/download/PromptHub-0.5.5-x64.AppImage) [![Linux deb](https://img.shields.io/badge/Linux_deb-FCC624?style=for-the-badge&logo=linux&logoColor=black)](https://github.com/legeling/PromptHub/releases/latest/download/prompthub_0.5.5_amd64.deb)        |
+|  Windows   | [![Windows x64](https://img.shields.io/badge/Windows_x64-0078D6?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/tianzecn/PromptHub/releases/latest/download/PromptHub-Setup-0.5.6-x64.exe) [![Windows arm64](https://img.shields.io/badge/Windows_arm64-0078D6?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/tianzecn/PromptHub/releases/latest/download/PromptHub-Setup-0.5.6-arm64.exe) |
+|   macOS    |   [![macOS Apple Silicon](https://img.shields.io/badge/macOS_Apple_Silicon-000000?style=for-the-badge&logo=apple&logoColor=white)](https://github.com/tianzecn/PromptHub/releases/latest/download/PromptHub-0.5.6-arm64.dmg) [![macOS Intel](https://img.shields.io/badge/macOS_Intel-000000?style=for-the-badge&logo=apple&logoColor=white)](https://github.com/tianzecn/PromptHub/releases/latest/download/PromptHub-0.5.6-x64.dmg)   |
+|   Linux    |       [![Linux AppImage](https://img.shields.io/badge/Linux_AppImage-FCC624?style=for-the-badge&logo=linux&logoColor=black)](https://github.com/tianzecn/PromptHub/releases/latest/download/PromptHub-0.5.6-x64.AppImage) [![Linux deb](https://img.shields.io/badge/Linux_deb-FCC624?style=for-the-badge&logo=linux&logoColor=black)](https://github.com/tianzecn/PromptHub/releases/latest/download/prompthub_0.5.6_amd64.deb)        |
 
 ### Premier démarrage sur macOS
 
@@ -150,7 +150,7 @@ sudo xattr -rd com.apple.quarantine /Applications/PromptHub.app
 
 ```bash
 # Cloner le dépôt
-git clone https://github.com/legeling/PromptHub.git
+git clone https://github.com/tianzecn/PromptHub.git
 cd PromptHub
 
 # Installer les dépendances
@@ -284,17 +284,17 @@ PromptHub/
 
 ## 📈 Star History
 
-<a href="https://star-history.com/#legeling/PromptHub&Date">
+<a href="https://star-history.com/#tianzecn/PromptHub&Date">
   <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=legeling/PromptHub&type=Date&theme=dark" />
-    <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=legeling/PromptHub&type=Date" />
-    <img alt="Star History Chart" src="https://api.star-history.com/svg?repos=legeling/PromptHub&type=Date" />
+    <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=tianzecn/PromptHub&type=Date&theme=dark" />
+    <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=tianzecn/PromptHub&type=Date" />
+    <img alt="Star History Chart" src="https://api.star-history.com/svg?repos=tianzecn/PromptHub&type=Date" />
   </picture>
 </a>
 
 ## 🗺️ Feuille de route (Roadmap)
 
-### v0.5.5 (Version actuelle) 🚀
+### v0.5.6 (Version actuelle) 🚀
 
 - [x] **Détection des mises à jour des Skills du store** : les Skills installés depuis le store conservent un hash du contenu installé et peuvent vérifier le `SKILL.md` distant
 - [x] **Protection contre les conflits de mise à jour** : PromptHub détecte les modifications locales et ne les écrase qu'après confirmation explicite
@@ -328,7 +328,7 @@ PromptHub/
 
 Vous pouvez voir le journal complet ici : **[CHANGELOG.md](../CHANGELOG.md)**
 
-### Dernière version v0.5.5 (2026-04-24) 🎉
+### Dernière version v0.5.6 (2026-04-24) 🎉
 
 **Mises à jour des Skills**
 
@@ -344,7 +344,7 @@ Vous pouvez voir le journal complet ici : **[CHANGELOG.md](../CHANGELOG.md)**
 **Desktop & Docs**
 
 - 🔒 **Protection des dossiers privés** : retirer le mode privé sur Desktop nécessite d'abord le déverrouillage par mot de passe maître
-- 🌍 **Sync des documents de release** : README, docs localisées et métadonnées du site synchronisés sur `v0.5.5`
+- 🌍 **Sync des documents de release** : README, docs localisées et métadonnées du site synchronisés sur `v0.5.6`
 
 > 📋 [Voir le journal des modifications](../CHANGELOG.md)
 
@@ -364,8 +364,8 @@ Ce projet est sous licence [AGPL-3.0 License](../LICENSE).
 
 ## 💬 Support
 
-- **Problèmes** : [GitHub Issues](https://github.com/legeling/PromptHub/issues)
-- **Discussions** : [GitHub Discussions](https://github.com/legeling/PromptHub/discussions)
+- **Problèmes** : [GitHub Issues](https://github.com/tianzecn/PromptHub/issues)
+- **Discussions** : [GitHub Discussions](https://github.com/tianzecn/PromptHub/discussions)
 
 ## 🙏 Remerciements
 
@@ -374,7 +374,7 @@ Ce projet est sous licence [AGPL-3.0 License](../LICENSE).
 - [TailwindCSS](https://tailwindcss.com/)
 - [Zustand](https://zustand-demo.pmnd.rs/)
 - [Lucide](https://lucide.dev/)
-- Merci à tous les incroyables [contributeurs](https://github.com/legeling/PromptHub/graphs/contributors) qui ont aidé à améliorer PromptHub !
+- Merci à tous les incroyables [contributeurs](https://github.com/tianzecn/PromptHub/graphs/contributors) qui ont aidé à améliorer PromptHub !
 
 ---
 

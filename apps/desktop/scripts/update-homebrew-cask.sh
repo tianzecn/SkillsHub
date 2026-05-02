@@ -12,8 +12,8 @@ set -euo pipefail
 
 VERSION="${1:?Usage: $0 <version> [release-tag]}"
 RELEASE_TAG="${2:-v${VERSION}}"
-REPO="legeling/PromptHub"
-TAP_REPO="legeling/homebrew-tap"
+REPO="tianzecn/PromptHub"
+TAP_REPO="tianzecn/homebrew-tap"
 CASK_FILE="Casks/prompthub.rb"
 TAP_BRANCH="${HOMEBREW_TAP_BRANCH:-main}"
 TAP_TOKEN="${HOMEBREW_TAP_TOKEN:-}"

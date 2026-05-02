@@ -138,8 +138,8 @@ packages/
 
 ## 💬 交流
 
-- [GitHub Issues](https://github.com/legeling/PromptHub/issues) - Bug 反馈
-- [GitHub Discussions](https://github.com/legeling/PromptHub/discussions) - 功能讨论
+- [GitHub Issues](https://github.com/tianzecn/PromptHub/issues) - Bug 反馈
+- [GitHub Discussions](https://github.com/tianzecn/PromptHub/discussions) - 功能讨论
 
 ## 📄 许可证
 

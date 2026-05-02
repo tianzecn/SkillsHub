@@ -8,7 +8,7 @@ An open-source AI Prompt & Skill management tool. Manage your prompts and SKILL.
 
 ## Key Features
 
-### 🧩 Skill Management (v0.5.5)
+### 🧩 Skill Management (v0.5.6)
 
 Built-in store with 20+ curated AI agent skills. One-click install to 15+ platforms. Local scan discovers existing SKILL.md files. Supports Symlink/copy modes, per-platform target directory overrides, AI translation, and tag filtering.
 
@@ -58,15 +58,15 @@ Export to JSON, YAML, or CSV. Easily integrate into your workflow or codebase.
 
 ## License
 
-PromptHub is licensed under [AGPL-3.0](https://github.com/legeling/PromptHub/blob/main/LICENSE).
+PromptHub is licensed under [AGPL-3.0](https://github.com/tianzecn/PromptHub/blob/main/LICENSE).
 
 ## Contributing
 
 We welcome all forms of contribution:
 
-- 🐛 [Report Bugs](https://github.com/legeling/PromptHub/issues/new?template=bug_report.md)
-- 💡 [Feature Requests](https://github.com/legeling/PromptHub/issues/new?template=feature_request.md)
-- 🔧 [Submit Pull Requests](https://github.com/legeling/PromptHub/pulls)
+- 🐛 [Report Bugs](https://github.com/tianzecn/PromptHub/issues/new?template=bug_report.md)
+- 💡 [Feature Requests](https://github.com/tianzecn/PromptHub/issues/new?template=feature_request.md)
+- 🔧 [Submit Pull Requests](https://github.com/tianzecn/PromptHub/pulls)
 - 🌍 Help with translations
 
 ## Next Steps

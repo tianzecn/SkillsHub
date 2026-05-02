@@ -926,7 +926,7 @@ function getSettingsSnapshot():
     // - webdavUsername / webdavPassword: WebDAV credentials (circular reference & security)
     // - webdavEncryptionPassword: Encryption key (security)
     // - aiApiKey: API keys for AI services (security)
-    // Issue: https://github.com/legeling/PromptHub/issues/23
+    // Issue: https://github.com/tianzecn/PromptHub/issues/23
     const sensitiveFields = [
       "webdavUsername",
       "webdavPassword",

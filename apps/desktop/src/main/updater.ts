@@ -31,7 +31,7 @@ interface UpdateRequestOptions {
 
 const OFFICIAL_REPO = {
   provider: "github" as const,
-  owner: "legeling",
+  owner: "tianzecn",
   repo: "PromptHub",
   releaseType: "release" as const,
 };
@@ -66,10 +66,10 @@ function getFeedSuffix(channel: UpdateChannel): string {
 function getMirrorSources(channel: UpdateChannel): string[] {
   const suffix = getFeedSuffix(channel);
   return [
-    `https://ghfast.top/https://github.com/legeling/PromptHub/releases/${suffix}`,
-    `https://gh-proxy.com/https://github.com/legeling/PromptHub/releases/${suffix}`,
-    `https://hub.gitmirror.com/https://github.com/legeling/PromptHub/releases/${suffix}`,
-    `https://cors.isteed.cc/github.com/legeling/PromptHub/releases/${suffix}`,
+    `https://ghfast.top/https://github.com/tianzecn/PromptHub/releases/${suffix}`,
+    `https://gh-proxy.com/https://github.com/tianzecn/PromptHub/releases/${suffix}`,
+    `https://hub.gitmirror.com/https://github.com/tianzecn/PromptHub/releases/${suffix}`,
+    `https://cors.isteed.cc/github.com/tianzecn/PromptHub/releases/${suffix}`,
   ];
 }
 
@@ -908,7 +908,7 @@ export function registerUpdaterIPC() {
   // Open GitHub Releases page
   // 打开 GitHub Releases 页面
   ipcMain.handle("updater:openReleases", () => {
-    shell.openExternal("https://github.com/legeling/PromptHub/releases");
+    shell.openExternal("https://github.com/tianzecn/PromptHub/releases");
   });
 
   ipcMain.handle("updater:openDownloadedUpdate", () => {

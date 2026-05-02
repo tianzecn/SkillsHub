@@ -98,7 +98,7 @@ export const Backers: React.FC<BackersProps> = ({ dict, limit }) => {
             whileInView={{ opacity: 1, scale: 1 }}
             viewport={{ once: true }}
             transition={{ delay: displayList.length * 0.1 }}
-            href="https://github.com/legeling/PromptHub#backers"
+            href="https://github.com/tianzecn/PromptHub#backers"
             className="group relative p-6 rounded-2xl bg-white/[0.01] border border-dashed border-white/10 hover:border-white/20 transition-all duration-500 flex flex-col items-center justify-center gap-3 text-center min-h-[140px]"
           >
             <div className="w-10 h-10 rounded-full bg-zinc-800 flex items-center justify-center text-zinc-500 group-hover:text-white transition-colors">

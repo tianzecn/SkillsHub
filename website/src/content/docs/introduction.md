@@ -8,7 +8,7 @@ title: 项目概览
 
 ## 核心特性
 
-### 🧩 Skill 技能管理（v0.5.5）
+### 🧩 Skill 技能管理（v0.5.6）
 
 内建 20+ 精选 AI 代理技能，支持一键安装到 15+ 平台。本地扫描发现已有 SKILL.md，支持 Symlink/复制模式、平台目标目录覆写、AI 翻译、标签筛选。
 
@@ -58,15 +58,15 @@ title: 项目概览
 
 ## 开源协议
 
-PromptHub 采用 [AGPL-3.0](https://github.com/legeling/PromptHub/blob/main/LICENSE) 开源协议。
+PromptHub 采用 [AGPL-3.0](https://github.com/tianzecn/PromptHub/blob/main/LICENSE) 开源协议。
 
 ## 参与贡献
 
 我们欢迎任何形式的贡献：
 
-- 🐛 [报告 Bug](https://github.com/legeling/PromptHub/issues/new?template=bug_report.md)
-- 💡 [提交功能建议](https://github.com/legeling/PromptHub/issues/new?template=feature_request.md)
-- 🔧 [提交 Pull Request](https://github.com/legeling/PromptHub/pulls)
+- 🐛 [报告 Bug](https://github.com/tianzecn/PromptHub/issues/new?template=bug_report.md)
+- 💡 [提交功能建议](https://github.com/tianzecn/PromptHub/issues/new?template=feature_request.md)
+- 🔧 [提交 Pull Request](https://github.com/tianzecn/PromptHub/pulls)
 - 🌍 帮助翻译
 
 ## 下一步

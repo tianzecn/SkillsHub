@@ -111,8 +111,8 @@ Useful root-level commands:
 
 When a release tag is built in CI, PromptHub also publishes a container image to GHCR:
 
-- `ghcr.io/legeling/prompthub-web:<version-tag>`
-- `ghcr.io/legeling/prompthub-web:latest`
+- `ghcr.io/tianzecn/prompthub-web:<version-tag>`
+- `ghcr.io/tianzecn/prompthub-web:latest`
 
 ### Quick Start with Docker Compose
 
@@ -151,14 +151,14 @@ That means your SQLite database, workspace files, and uploaded media stay on dis
 If you don't want to build locally, you can pull the published image directly:
 
 ```bash
-docker pull ghcr.io/legeling/prompthub-web:latest
+docker pull ghcr.io/tianzecn/prompthub-web:latest
 docker run -d \
   --name prompthub-web \
   -p 3871:3000 \
   -e JWT_SECRET='replace-with-a-random-secret-at-least-32-chars' \
   -e ALLOW_REGISTRATION=false \
   -v "$(pwd)/apps/web/data:/app/data" \
-  ghcr.io/legeling/prompthub-web:latest
+  ghcr.io/tianzecn/prompthub-web:latest
 ```
 
 You can also deploy directly from the published image with the included compose override:

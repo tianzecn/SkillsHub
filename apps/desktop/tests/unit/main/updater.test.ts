@@ -183,7 +183,7 @@ describe('Updater Service (Main Process)', () => {
         expect(autoUpdater.channel).toBe('preview');
         expect(autoUpdater.setFeedURL).toHaveBeenCalledWith({
             provider: 'generic',
-            url: 'https://github.com/legeling/PromptHub/releases/download/preview',
+            url: 'https://github.com/tianzecn/PromptHub/releases/download/preview',
         });
     });
 });

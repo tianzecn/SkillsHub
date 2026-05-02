@@ -1,5 +1,7 @@
 ## [Unreleased]
 
+## [0.5.6] - 2026-05-02
+
 ### 新增 / Added
 
 - 🧩 **Skill 分栏管理视图**：我的 Skill / 收藏 / 分发视图改为“紧凑列表 + 嵌入式详情”的 Split View，支持 1280px+ 三栏、1024–1279px 抽屉折叠、窄屏回退、可拖拽列表宽度、批量摘要面板、键盘导航、未保存修改拦截、详情 tab/滚动位置缓存，以及 200ms 选中防抖来避免快速切换时的同步请求风暴
@@ -14,6 +16,11 @@
 
 - ⚡ **Skill Split View 卡顿优化**：分栏拖拽不再重挂整个虚拟列表，自动安全扫描会等当前 Skill 内容同步完成后只对稳定内容运行一次，减少拖拽和快速切换 Skill 时的重渲染与后台抖动
   - **Skill Split View Responsiveness**: Splitter dragging no longer remounts the whole virtualized list, and automatic safety scanning waits for the current skill content to settle and runs once per stable content snapshot, reducing re-rendering and background churn during resize and rapid skill switching
+
+### 维护 / Maintenance
+
+- 🔁 **发布源切换到 `tianzecn/PromptHub`**：桌面端自动更新、GitHub Release 发布配置、自部署 Web 镜像地址、官网与多语言下载链接已统一指向当前仓库，后续设备会从新的 Release 源检查和安装更新
+  - **Release Source Switched to `tianzecn/PromptHub`**: Desktop auto-update, GitHub Release publishing config, self-hosted Web image references, website metadata, and localized download links now point to the current repository so future devices check and install updates from the new Release source
 
 ## [0.5.5] - 2026-04-24
 

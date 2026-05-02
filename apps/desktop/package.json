@@ -1,6 +1,6 @@
 {
   "name": "@prompthub/desktop",
-  "version": "0.5.5",
+  "version": "0.5.6",
   "private": true,
   "description": "PromptHub Desktop - Electron application for AI prompt management",
   "main": "out/main/index.js",
@@ -27,7 +27,7 @@
   "license": "AGPL-3.0",
   "repository": {
     "type": "git",
-    "url": "https://github.com/legeling/PromptHub.git",
+    "url": "https://github.com/tianzecn/PromptHub.git",
     "directory": "apps/desktop"
   },
   "scripts": {
