@@ -19,7 +19,9 @@ export default defineConfig({
           //
           // Override the default argv to omit `--no-sandbox`, which Electron
           // 33 can mis-handle as an app URL on macOS.
-          args.startup(["."]);
+          const electronEnv = { ...process.env };
+          delete electronEnv.ELECTRON_RUN_AS_NODE;
+          args.startup(["."], { env: electronEnv });
         },
         vite: {
           build: {

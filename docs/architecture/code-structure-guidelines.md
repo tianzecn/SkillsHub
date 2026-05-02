@@ -13,12 +13,12 @@ This document defines the code organization rules for PromptHub, with a focus on
 
 These files are large enough to slow down review and raise change risk:
 
-- `src/renderer/components/settings/AISettings.tsx`
-- `src/renderer/components/layout/MainContent.tsx`
-- `src/renderer/services/database.ts`
-- `src/main/services/skill-installer.ts`
-- `src/renderer/components/prompt/CreatePromptModal.tsx`
-- `src/renderer/components/skill/SkillFullDetailPage.tsx`
+- `apps/desktop/src/renderer/components/settings/AISettings.tsx`
+- `apps/desktop/src/renderer/components/layout/MainContent.tsx`
+- `apps/desktop/src/renderer/services/database.ts`
+- `apps/desktop/src/main/services/skill-installer.ts`
+- `apps/desktop/src/renderer/components/prompt/CreatePromptModal.tsx`
+- `apps/desktop/src/renderer/components/skill/SkillFullDetailPage.tsx`
 
 Large files are not automatically wrong, but they should be treated as refactor candidates when touched.
 
@@ -49,9 +49,9 @@ Move these out when they grow:
 
 Examples:
 
-- `SkillFullDetailPage.tsx` and `SkillDetailView.tsx` now share version-restore helpers through `src/renderer/components/skill/detail-utils.ts`.
-- Backup and restore workflows now live in `src/renderer/services/database-backup.ts` instead of being coupled to every IndexedDB helper.
-- `CreatePromptModal.tsx` and `EditPromptModal.tsx` now share prompt form utilities and modal behavior through `src/renderer/components/prompt/prompt-modal-utils.ts`, `src/renderer/components/prompt/usePromptMediaManager.ts`, and `src/renderer/components/prompt/usePromptNativeFullscreen.ts`.
+- `SkillFullDetailPage.tsx` and `SkillDetailView.tsx` now share version-restore helpers through `apps/desktop/src/renderer/components/skill/detail-utils.ts`.
+- Backup and restore workflows now live in `apps/desktop/src/renderer/services/database-backup.ts` instead of being coupled to every IndexedDB helper.
+- `CreatePromptModal.tsx` and `EditPromptModal.tsx` now share prompt form utilities and modal behavior through `apps/desktop/src/renderer/components/prompt/prompt-modal-utils.ts`, `apps/desktop/src/renderer/components/prompt/usePromptMediaManager.ts`, and `apps/desktop/src/renderer/components/prompt/usePromptNativeFullscreen.ts`.
 
 ### Renderer services
 

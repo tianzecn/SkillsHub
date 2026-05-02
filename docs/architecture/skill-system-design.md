@@ -221,7 +221,7 @@ When disabled, the `<available_skills>` section is omitted entirely.
 
 ### 3.2 Skill Management (The "Skill Store")
 
-- **Library View**: A grid view of installed skills.
+- **Library View**: Installed skills use the Split View layout: a compact searchable list on the left and an embedded `SkillFullDetailPage` on the right. The marketplace/store surface remains full-screen.
 - **One-click Install**:
   - Install from a URL (e.g., from a community Git repo).
   - Install from official/community maintained `registry.json` sources.

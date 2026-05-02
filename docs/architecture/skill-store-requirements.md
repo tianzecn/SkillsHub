@@ -80,12 +80,12 @@ Add sub-navigation in the Skill area:
 
 **Layout:**
 - Top search bar for store skills
-- **Installed** section: installed skills in 2-column grid, icon + name + description + edit button
+- **Installed** section: store-origin installed skills may still appear in a compact store list, but the main installed-library management surface is the Split View under My Skills / Favorites / Distribution
 - **Recommended** section: recommended skills in 2-column grid, icon + name + description + install button (+)
 - Category filter tabs: All / Office / Dev / AI / Data / Management / Deploy / Design / Security
 
 **Interactions:**
-- Click installed skill → open skill detail page (edit mode)
+- Click installed skill → open it in the installed-library Split View detail pane (or full-screen fallback on narrow windows)
 - Click recommended skill → open skill detail modal (install mode)
 - Click `+` button → install directly (skip detail modal)
 - Click edit button → open skill editor
@@ -256,6 +256,11 @@ interface SkillIconProps {
 ```
 
 ### 5.2 Installed Skill Detail
+
+Installed-library management reuses `SkillFullDetailPage` through Split View:
+- Compact left list + embedded right detail for My Skills / Favorites / Distribution
+- Full-screen fallback below 1024 px
+- Marketplace/store remains full-screen
 
 Extends existing `SkillFullDetailPage` with:
 - Skill icon display

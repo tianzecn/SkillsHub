@@ -286,7 +286,7 @@ export function SkillSplitList({
       `[data-skill-id="${CSS.escape(selectedSkillId)}"]`,
     );
     node?.scrollIntoView({ block: "nearest" });
-  }, [selectedSkillId, skills, width]);
+  }, [selectedSkillId, skills]);
 
   const filterOptions: SkillFilterType[] = [
     "all",
@@ -447,7 +447,6 @@ export function SkillSplitList({
         <div ref={containerRef} className="min-h-0 flex-1 overflow-y-auto">
           {useVirtualRows ? (
             <List<SkillRowData>
-              key={width}
               listRef={listRef}
               className="h-full"
               defaultHeight={640}

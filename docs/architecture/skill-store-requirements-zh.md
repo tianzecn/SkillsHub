@@ -80,12 +80,12 @@
 
 **布局要求：**
 - 顶部搜索栏：搜索商店中的技能
-- **Installed** 区域：已安装的技能，2列网格，每项含图标+名称+描述+编辑按钮
+- **Installed** 区域：商店来源的已安装技能可在商店内紧凑展示；真正的已安装库管理入口为“我的 Skill / 收藏 / 分发”下的 Split View
 - **Recommended** 区域：推荐安装的技能，2列网格，每项含图标+名称+描述+安装按钮(+)
 - 支持按类别筛选：全部 / 办公工具 / 开发工具 / AI生成 / 数据分析 / 项目管理
 
 **交互行为：**
-- 点击已安装技能 → 进入技能详情页（编辑模式）
+- 点击已安装技能 → 在已安装库的 Split View 右侧详情栏中打开（窄屏时回退为全屏详情）
 - 点击推荐技能 → 弹出技能详情弹窗（安装模式）
 - 点击 `+` 按钮 → 直接安装（无需弹窗确认）
 - 点击编辑按钮 → 进入技能编辑页
@@ -301,7 +301,12 @@ function SkillIcon({ iconUrl, iconEmoji, name, size = 'md', className }: SkillIc
 
 ### 5.2 详情页（已安装模式）
 
-已安装技能点击后进入全宽详情页（复用现有 `SkillFullDetailPage`），增加：
+已安装 Skill 库管理复用 `SkillFullDetailPage` 并通过 Split View 呈现：
+- 我的 Skill / 收藏 / 分发：左侧紧凑列表 + 右侧嵌入式详情
+- 小于 1024px：回退为全屏详情页
+- Skill 商店：继续保持全屏商店体验
+
+在详情能力上继续增加：
 - 技能图标显示
 - 来源信息（GitHub URL）
 - 平台安装状态（已有）
@@ -446,7 +451,7 @@ interface SkillState {
 
 - [ ] 扩展 `Skill` 类型，添加 `icon_url`, `icon_emoji`, `category`, `is_builtin`, `registry_slug`, `content_url`, `prerequisites`, `compatibility` 字段
 - [ ] 编写数据库迁移脚本，在 `skills` 表中添加新字段
-- [ ] 创建 `src/shared/constants/skill-registry.ts`，内置预置技能注册表数据
+- [ ] 创建 `packages/shared/constants/skill-registry.ts`，内置预置技能注册表数据
 - [ ] 创建 `RegistrySkill` 类型定义
 - [ ] 实现注册表加载逻辑（本地内置 + 远程更新）
 
@@ -454,7 +459,7 @@ interface SkillState {
 
 **优先级: 高 | 预计工时: 1-2天**
 
-- [ ] 创建 `src/renderer/components/skill/SkillIcon.tsx` 组件
+- [ ] 创建 `apps/desktop/src/renderer/components/skill/SkillIcon.tsx` 组件
 - [ ] 实现图标加载优先级：URL → Emoji → 首字母 → 默认图标
 - [ ] 实现图标加载状态和错误降级
 - [ ] 替换现有 `CuboidIcon` 为 `SkillIcon`（SkillManager, SkillListView, SkillFullDetailPage, SkillDetailView）
@@ -464,7 +469,7 @@ interface SkillState {
 
 **优先级: 高 | 预计工时: 3-4天**
 
-- [ ] 创建 `src/renderer/components/skill/SkillStore.tsx` 商店主页面组件
+- [ ] 创建 `apps/desktop/src/renderer/components/skill/SkillStore.tsx` 商店主页面组件
 - [ ] 实现 Installed / Recommended 两段式布局
 - [ ] 实现技能分类筛选 tabs (全部/办公/开发/AI/数据/管理/部署/设计/安全)
 - [ ] 实现商店内搜索功能
@@ -475,7 +480,7 @@ interface SkillState {
 
 **优先级: 高 | 预计工时: 2-3天**
 
-- [ ] 创建 `src/renderer/components/skill/SkillStoreDetail.tsx` 详情弹窗组件
+- [ ] 创建 `apps/desktop/src/renderer/components/skill/SkillStoreDetail.tsx` 详情弹窗组件
 - [ ] 弹窗头部：大图标 + 名称 + 描述
 - [ ] 弹窗正文：Markdown 渲染 SKILL.md 内容（复用现有 ReactMarkdown 配置）
 - [ ] 弹窗底部：元信息（来源、版本、兼容平台）+ Install / Installed 按钮
@@ -529,19 +534,19 @@ interface SkillState {
 
 | 文件路径 | 变更类型 | 说明 |
 |----------|----------|------|
-| `src/shared/types/skill.ts` | 修改 | 扩展 Skill 接口，新增 RegistrySkill |
-| `src/shared/constants/skill-registry.ts` | 新建 | 预置技能注册表数据 |
-| `src/renderer/stores/skill.store.ts` | 修改 | 新增商店相关状态和 actions |
-| `src/renderer/components/skill/SkillIcon.tsx` | 新建 | 技能图标组件 |
-| `src/renderer/components/skill/SkillStore.tsx` | 新建 | 商店主页面 |
-| `src/renderer/components/skill/SkillStoreDetail.tsx` | 新建 | 商店详情弹窗 |
-| `src/renderer/components/skill/SkillManager.tsx` | 修改 | 集成商店视图切换 |
-| `src/renderer/components/skill/SkillListView.tsx` | 修改 | 替换图标为 SkillIcon |
-| `src/renderer/components/skill/SkillFullDetailPage.tsx` | 修改 | 替换图标为 SkillIcon，增加来源信息 |
-| `src/renderer/components/skill/SkillDetailView.tsx` | 修改 | 替换图标为 SkillIcon |
-| `src/renderer/components/layout/Sidebar.tsx` | 修改 | 新增商店导航项 |
-| `src/main/database.ts` (或相应) | 修改 | 数据库迁移脚本 |
-| `src/renderer/i18n/*/translation.json` | 修改 | 新增翻译 key |
+| `packages/shared/types/skill.ts` | 修改 | 扩展 Skill 接口，新增 RegistrySkill |
+| `packages/shared/constants/skill-registry.ts` | 新建 | 预置技能注册表数据 |
+| `apps/desktop/src/renderer/stores/skill.store.ts` | 修改 | 新增商店相关状态和 actions |
+| `apps/desktop/src/renderer/components/skill/SkillIcon.tsx` | 新建 | 技能图标组件 |
+| `apps/desktop/src/renderer/components/skill/SkillStore.tsx` | 新建 | 商店主页面 |
+| `apps/desktop/src/renderer/components/skill/SkillStoreDetail.tsx` | 新建 | 商店详情弹窗 |
+| `apps/desktop/src/renderer/components/skill/SkillManager.tsx` | 修改 | 集成商店视图切换 |
+| `apps/desktop/src/renderer/components/skill/SkillListView.tsx` | 修改 | 替换图标为 SkillIcon |
+| `apps/desktop/src/renderer/components/skill/SkillFullDetailPage.tsx` | 修改 | 替换图标为 SkillIcon，增加来源信息 |
+| `apps/desktop/src/renderer/components/skill/SkillDetailView.tsx` | 修改 | 替换图标为 SkillIcon |
+| `apps/desktop/src/renderer/components/layout/Sidebar.tsx` | 修改 | 新增商店导航项 |
+| `packages/db/src/init.ts` (或桌面端迁移入口) | 修改 | 数据库迁移脚本 |
+| `apps/desktop/src/renderer/i18n/locales/*.json` | 修改 | 新增翻译 key |
 
 ### B. 技能类别定义
 

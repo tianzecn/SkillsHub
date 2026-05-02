@@ -86,9 +86,9 @@
 - [x] 12.2 Run `pnpm typecheck` (no errors)
 - [x] 12.3 Run `pnpm test -- --run` (full unit suite green)
 - [ ] 12.4 Run `pnpm test:e2e:smoke` (smoke green)
-- [ ] 12.5 Run `pnpm test:perf` (budget honored)
+- [x] 12.5 Run `pnpm test:perf` (budget honored)
 - [ ] 12.6 Manual verification on `apps/web` (`pnpm dev:web`) at viewport widths 1500 / 1280 / 1100 / 900 px
 - [ ] 12.7 Manual verification on Electron at the same viewport widths
 - [ ] 12.8 Manual verification of fallback path: <1024 px width still renders the existing full-screen `SkillFullDetailPage` with back arrow
 - [x] 12.9 Confirm `SkillFullDetailPage` line count ≤ 1300 after extraction (Task 1.4); if not, plan follow-up extraction issue
-- [ ] 12.10 Update CHANGELOG.md and any user-facing release notes (no version bump or website regen — those are release-time concerns governed by `.agents/rules/release-sync.md`)
+- [x] 12.10 Update CHANGELOG.md and any user-facing release notes (no version bump or website regen — those are release-time concerns governed by `.agents/rules/release-sync.md`)

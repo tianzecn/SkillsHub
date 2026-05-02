@@ -233,6 +233,8 @@ tools:
 
 ## 4. 安装与应用技能
 
+> 说明：已安装 Skill 的库视图现在采用 Split View：左侧紧凑搜索列表，右侧嵌入式 `SkillFullDetailPage`。Skill 商店视图仍保持全屏页面。
+
 ### 4.1 安装方式
 
 #### 4.1.1 一键安装

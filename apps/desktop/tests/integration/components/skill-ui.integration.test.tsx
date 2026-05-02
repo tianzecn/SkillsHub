@@ -86,6 +86,10 @@ function createSkillStoreState(overrides: Partial<Record<string, unknown>> = {})
     filterTags: [],
     scanLocalPreview: vi.fn().mockResolvedValue([]),
     importScannedSkills: vi.fn().mockResolvedValue({ importedCount: 0 }),
+    syncSkillFromRepo: vi.fn().mockRejectedValue(new Error("No local repo")),
+    saveSafetyReport: vi.fn().mockResolvedValue(undefined),
+    rememberDetailTabState: vi.fn(),
+    getDetailTabState: vi.fn().mockReturnValue(undefined),
     translateContent: vi.fn().mockResolvedValue(undefined),
     getTranslation: vi.fn().mockReturnValue(null),
     clearTranslation: vi.fn(),
@@ -98,6 +102,8 @@ function createSettingsState(overrides: Partial<Record<string, unknown>> = {}) {
     customSkillScanPaths: [],
     translationMode: "full",
     skillInstallMethod: "symlink",
+    autoScanInstalledSkills: false,
+    aiModels: [],
     ...overrides,
   };
 }
@@ -218,4 +224,86 @@ describe("skill ui integration", () => {
     },
     15000,
   );
+
+  it("runs automatic safety scan once after the current skill content settles", async () => {
+    const syncedContent = "# Synced skill\n\nUse this content for scanning.";
+    const safetyReport = {
+      level: "safe",
+      score: 96,
+      findings: [],
+      summary: "No risky behavior detected.",
+      scannedAt: Date.now(),
+    };
+    const syncSkillFromRepo = vi.fn().mockResolvedValue({
+      ...baseSkill,
+      instructions: syncedContent,
+      content: syncedContent,
+    });
+    let skillStoreState: ReturnType<typeof createSkillStoreState>;
+    const saveSafetyReport = vi.fn().mockImplementation(async (_id, report) => {
+      skillStoreState = {
+        ...skillStoreState,
+        skills: [{ ...baseSkill, safetyReport: report }],
+      };
+    });
+
+    skillStoreState = createSkillStoreState({
+      selectedSkillId: baseSkill.id,
+      syncSkillFromRepo,
+      saveSafetyReport,
+    });
+    const settingsState = createSettingsState({
+      autoScanInstalledSkills: true,
+      aiModels: [],
+    });
+
+    installWindowMocks({
+      api: {
+        skill: {
+          readLocalFiles: vi.fn().mockResolvedValue([
+            createSkillLocalFileEntryFixture(),
+          ]),
+          scanSafety: vi.fn().mockResolvedValue(safetyReport),
+          versionCreate: vi.fn().mockResolvedValue(undefined),
+        },
+      },
+    });
+
+    useSkillStoreMock.mockImplementation((selector) => selector(skillStoreState));
+    useSettingsStoreMock.mockImplementation((selector) => selector(settingsState));
+
+    let view: Awaited<ReturnType<typeof renderWithI18n>> | null = null;
+    await act(async () => {
+      view = await renderWithI18n(
+        <SkillFullDetailPage embedded skillId={baseSkill.id} />,
+        { language: "en" },
+      );
+    });
+
+    await waitFor(() => {
+      expect(window.api.skill.scanSafety).toHaveBeenCalledTimes(1);
+    });
+    expect(window.api.skill.scanSafety).toHaveBeenCalledWith(
+      expect.objectContaining({
+        content: syncedContent,
+        name: baseSkill.name,
+      }),
+    );
+
+    if (view === null) {
+      throw new Error("Expected SkillFullDetailPage render result");
+    }
+
+    await act(async () => {
+      view.rerender(<SkillFullDetailPage embedded skillId={baseSkill.id} />);
+    });
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expect(syncSkillFromRepo).toHaveBeenCalledTimes(1);
+    expect(window.api.skill.scanSafety).toHaveBeenCalledTimes(1);
+    expect(saveSafetyReport).toHaveBeenCalledTimes(1);
+  });
 });

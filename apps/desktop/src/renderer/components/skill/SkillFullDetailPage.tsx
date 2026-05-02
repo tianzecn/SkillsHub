@@ -139,6 +139,8 @@ export function SkillFullDetailPage({
   const [isCreatingSnapshot, setIsCreatingSnapshot] = useState(false);
   const [snapshotNote, setSnapshotNote] = useState("");
   const [resolvedSkillMdContent, setResolvedSkillMdContent] = useState("");
+  const [resolvedSkillMdContentSkillId, setResolvedSkillMdContentSkillId] =
+    useState<string | null>(null);
   const [fileEditorHasUnsavedChanges, setFileEditorHasUnsavedChanges] =
     useState(false);
   const [isUnsavedDialogOpen, setIsUnsavedDialogOpen] = useState(false);
@@ -168,12 +170,16 @@ export function SkillFullDetailPage({
           : "English";
   }, [i18n.language]);
 
+  const displaySkillMdContent =
+    resolvedSkillMdContentSkillId === selectedSkill?.id
+      ? resolvedSkillMdContent
+      : (selectedSkill?.instructions ?? selectedSkill?.content ?? "");
   const resolvedDescription = useMemo(
     () =>
-      resolveSkillDescription(resolvedSkillMdContent) ||
+      resolveSkillDescription(displaySkillMdContent) ||
       selectedSkill?.description ||
       "",
-    [resolvedSkillMdContent, selectedSkill?.description],
+    [displaySkillMdContent, selectedSkill?.description],
   );
   const safetyTone =
     safetyReport?.level === "blocked"
@@ -266,8 +272,11 @@ export function SkillFullDetailPage({
     async function resolveSkillMdContent() {
       if (!selectedSkill) {
         setResolvedSkillMdContent("");
+        setResolvedSkillMdContentSkillId(null);
         return;
       }
+
+      setResolvedSkillMdContentSkillId(null);
 
       try {
         const syncedSkill = await syncSkillFromRepo(selectedSkill.id);
@@ -279,12 +288,14 @@ export function SkillFullDetailPage({
           "";
         if (!cancelled) {
           setResolvedSkillMdContent(repoSkillMd);
+          setResolvedSkillMdContentSkillId(selectedSkill.id);
         }
       } catch {
         if (!cancelled) {
           setResolvedSkillMdContent(
             selectedSkill.instructions || selectedSkill.content || "",
           );
+          setResolvedSkillMdContentSkillId(selectedSkill.id);
         }
       }
     }
@@ -307,27 +318,34 @@ export function SkillFullDetailPage({
       return;
     }
 
+    if (resolvedSkillMdContentSkillId !== selectedSkill.id) {
+      return;
+    }
+
     let cancelled = false;
+    const skillId = selectedSkill.id;
+    const skillName = selectedSkill.name;
+    const skillContent =
+      resolvedSkillMdContent || selectedSkill.instructions || selectedSkill.content;
+    const sourceUrl = selectedSkill.source_url;
+    const contentUrl = selectedSkill.content_url;
+    const localRepoPath = selectedSkill.local_repo_path;
 
     const runScan = async () => {
       setIsScanningSafety(true);
       try {
         const report = await window.api.skill.scanSafety({
-          name: selectedSkill.name,
-          content:
-            resolvedSkillMdContent ||
-            selectedSkill.instructions ||
-            selectedSkill.content,
-          sourceUrl: selectedSkill.source_url,
-          contentUrl: selectedSkill.content_url,
-          localRepoPath: selectedSkill.local_repo_path,
+          name: skillName,
+          content: skillContent,
+          sourceUrl,
+          contentUrl,
+          localRepoPath,
           aiConfig: getSafetyScanAIConfig(aiModels),
         });
         if (!cancelled) {
           setSafetyReport(report);
-          // Persist to DB + update store
           try {
-            await saveSafetyReport(selectedSkill.id, report);
+            await saveSafetyReport(skillId, report);
           } catch (err) {
             console.warn("Failed to persist auto-scan safety report:", err);
           }
@@ -352,7 +370,15 @@ export function SkillFullDetailPage({
     aiModels,
     autoScanInstalledSkills,
     resolvedSkillMdContent,
-    selectedSkill,
+    resolvedSkillMdContentSkillId,
+    saveSafetyReport,
+    selectedSkill?.content,
+    selectedSkill?.content_url,
+    selectedSkill?.id,
+    selectedSkill?.instructions,
+    selectedSkill?.local_repo_path,
+    selectedSkill?.name,
+    selectedSkill?.source_url,
   ]);
   const {
     availablePlatforms,
@@ -410,10 +436,7 @@ export function SkillFullDetailPage({
     try {
       const report = await window.api.skill.scanSafety({
         name: selectedSkill.name,
-        content:
-          resolvedSkillMdContent ||
-          selectedSkill.instructions ||
-          selectedSkill.content,
+        content: displaySkillMdContent,
         sourceUrl: selectedSkill.source_url,
         contentUrl: selectedSkill.content_url,
         localRepoPath: selectedSkill.local_repo_path,
@@ -491,7 +514,7 @@ export function SkillFullDetailPage({
         clearTranslation(descriptionTranslationCacheKey);
       }
 
-      const stripped = stripFrontmatter(resolvedSkillMdContent);
+      const stripped = stripFrontmatter(displaySkillMdContent);
       const promises: Promise<unknown>[] = [
         translateContent(stripped, translationCacheKey, targetLang, {
           forceRefresh,
@@ -740,7 +763,7 @@ export function SkillFullDetailPage({
                   resolvedDescription={resolvedDescription}
                   selectedSkill={selectedSkill}
                   showTranslation={showTranslation}
-                  skillContent={resolvedSkillMdContent}
+                  skillContent={displaySkillMdContent}
                   t={t}
                   translationMode={translationMode}
                 />
@@ -769,7 +792,7 @@ export function SkillFullDetailPage({
                 copyStatus={copyStatus}
                 handleCopy={handleCopy}
                 selectedSkill={selectedSkill}
-                skillContent={resolvedSkillMdContent}
+                skillContent={displaySkillMdContent}
                 t={t}
               />
             )}
@@ -842,7 +865,7 @@ export function SkillFullDetailPage({
         isOpen={isVersionHistoryOpen}
         onClose={() => setIsVersionHistoryOpen(false)}
         skill={selectedSkill}
-        currentContent={resolvedSkillMdContent}
+        currentContent={displaySkillMdContent}
         onReload={loadSkills}
       />
 
