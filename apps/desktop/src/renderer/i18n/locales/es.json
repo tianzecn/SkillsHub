@@ -922,6 +922,22 @@
     "disable": "Desactivar"
   },
   "skill": {
+    "split": {
+      "empty": "Selecciona una habilidad de la lista",
+      "emptyHint": "Explora tus habilidades a la izquierda y elige una para ver su vista previa, código y despliegue en plataformas sin salir de esta página.",
+      "noSkillsHint": "Crea, importa, escanea o ajusta filtros para mostrar habilidades aquí.",
+      "unsavedTitle": "Cambios de habilidad sin guardar",
+      "unsavedDescription": "Guarda o descarta tus cambios antes de cambiar de habilidad.",
+      "fullscreen": "Abrir en pantalla completa",
+      "exitFullscreen": "Salir de pantalla completa",
+      "batchSummary": "{{count}} seleccionadas",
+      "openListDrawer": "Abrir lista de habilidades",
+      "resizeHandleTooltip": "Arrastra para redimensionar la lista. Doble clic para restablecer.",
+      "toggleSelection": "Cambiar selección",
+      "listCount": "{{count}} habilidades",
+      "compactHint": "Panel de lista",
+      "noBatchSelection": "Aún no hay habilidades seleccionadas"
+    },
     "title": "Habilidad",
     "name": "Nombre de la habilidad",
     "description": "Descripción",

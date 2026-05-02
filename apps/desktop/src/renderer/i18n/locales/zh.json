@@ -922,6 +922,22 @@
     "disable": "停用"
   },
   "skill": {
+    "split": {
+      "empty": "从左侧列表选择一个技能",
+      "emptyHint": "在左侧浏览你的技能列表，挑一个查看预览、源码和平台部署状态，无需跳出当前页面。",
+      "noSkillsHint": "创建、导入、扫描或调整筛选条件后，这里会显示技能。",
+      "unsavedTitle": "技能更改尚未保存",
+      "unsavedDescription": "切换技能前，请保存或放弃当前编辑。",
+      "fullscreen": "全屏阅读",
+      "exitFullscreen": "退出全屏",
+      "batchSummary": "已选择 {{count}} 个",
+      "openListDrawer": "打开技能列表",
+      "resizeHandleTooltip": "拖动调整技能列表宽度，双击重置。",
+      "toggleSelection": "切换选中",
+      "listCount": "{{count}} 个技能",
+      "compactHint": "列表抽屉",
+      "noBatchSelection": "尚未选择技能"
+    },
     "title": "技能",
     "name": "技能名称",
     "description": "描述",

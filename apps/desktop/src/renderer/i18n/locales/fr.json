@@ -922,6 +922,22 @@
     "disable": "Désactiver"
   },
   "skill": {
+    "split": {
+      "empty": "Sélectionnez une compétence dans la liste",
+      "emptyHint": "Parcourez vos compétences à gauche, puis choisissez-en une pour voir son aperçu, son code et son déploiement sur les plateformes sans quitter cette page.",
+      "noSkillsHint": "Créez, importez, scannez ou ajustez les filtres pour afficher des compétences ici.",
+      "unsavedTitle": "Modifications de compétence non enregistrées",
+      "unsavedDescription": "Enregistrez ou ignorez vos modifications avant de changer de compétence.",
+      "fullscreen": "Ouvrir en plein écran",
+      "exitFullscreen": "Quitter le plein écran",
+      "batchSummary": "{{count}} sélectionnées",
+      "openListDrawer": "Ouvrir la liste des compétences",
+      "resizeHandleTooltip": "Faites glisser pour redimensionner la liste. Double-cliquez pour réinitialiser.",
+      "toggleSelection": "Basculer la sélection",
+      "listCount": "{{count}} compétences",
+      "compactHint": "Tiroir de liste",
+      "noBatchSelection": "Aucune compétence sélectionnée"
+    },
     "title": "Compétence",
     "name": "Nom de la compétence",
     "description": "Description",

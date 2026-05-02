@@ -933,6 +933,22 @@
     "disable": "Disable"
   },
   "skill": {
+    "split": {
+      "empty": "Select a skill from the list",
+      "emptyHint": "Browse your skills on the left, then pick one to see its preview, code, and platform deployment without leaving this page.",
+      "noSkillsHint": "Create, import, scan, or adjust filters to show skills here.",
+      "unsavedTitle": "Unsaved skill changes",
+      "unsavedDescription": "Save or discard your current edits before switching skills.",
+      "fullscreen": "Open in fullscreen",
+      "exitFullscreen": "Exit fullscreen",
+      "batchSummary": "{{count}} selected",
+      "openListDrawer": "Open skill list",
+      "resizeHandleTooltip": "Drag to resize the skill list. Double-click to reset.",
+      "toggleSelection": "Toggle selection",
+      "listCount": "{{count}} skills",
+      "compactHint": "List drawer",
+      "noBatchSelection": "No skills selected yet"
+    },
     "title": "Skill",
     "name": "Skill Name",
     "description": "Description",

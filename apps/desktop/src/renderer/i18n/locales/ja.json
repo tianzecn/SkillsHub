@@ -922,6 +922,22 @@
     "disable": "無効にする"
   },
   "skill": {
+    "split": {
+      "empty": "左のリストからスキルを選んでください",
+      "emptyHint": "左側でスキル一覧を閲覧し、選択するとプレビュー・ソース・プラットフォーム配置状況をこのページから離れずに確認できます。",
+      "noSkillsHint": "作成、インポート、スキャン、またはフィルター調整後にスキルが表示されます。",
+      "unsavedTitle": "未保存のスキル変更",
+      "unsavedDescription": "スキルを切り替える前に、現在の編集を保存または破棄してください。",
+      "fullscreen": "全画面で閲覧",
+      "exitFullscreen": "全画面を終了",
+      "batchSummary": "{{count}} 件を選択中",
+      "openListDrawer": "スキルリストを開く",
+      "resizeHandleTooltip": "ドラッグでスキルリスト幅を変更、ダブルクリックでリセットします。",
+      "toggleSelection": "選択を切り替え",
+      "listCount": "{{count}} 件のスキル",
+      "compactHint": "リストドロワー",
+      "noBatchSelection": "スキルがまだ選択されていません"
+    },
     "title": "スキル",
     "name": "スキル名",
     "description": "説明",

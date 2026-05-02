@@ -1,15 +1,9 @@
 import { useTranslation } from "react-i18next";
 import {
-  ArrowLeftIcon,
   ArrowUpIcon,
-  GlobeIcon,
-  HistoryIcon,
   BookOpenIcon,
   CodeIcon,
-  PencilIcon,
   SaveIcon,
-  StarIcon,
-  TrashIcon,
   FolderOpenIcon,
   ShieldAlertIcon,
   ShieldCheckIcon,
@@ -19,12 +13,15 @@ import {
   InfoIcon,
   CheckCircleIcon,
 } from "lucide-react";
-import { SkillIcon } from "./SkillIcon";
 import { SkillCodePane } from "./SkillCodePane";
+import { SkillDetailActionHeader } from "./SkillDetailActionHeader";
 import { useState, useEffect, useMemo, useRef } from "react";
 import { SkillPlatformPanel } from "./SkillPlatformPanel";
 import { SkillPreviewPane } from "./SkillPreviewPane";
-import { useSkillStore } from "../../stores/skill.store";
+import {
+  type SkillDetailTab,
+  useSkillStore,
+} from "../../stores/skill.store";
 import { useSettingsStore } from "../../stores/settings.store";
 import { useToast } from "../ui/Toast";
 import { UnsavedChangesDialog } from "../ui/UnsavedChangesDialog";
@@ -55,14 +52,45 @@ import { getRuntimeCapabilities } from "../../runtime";
 /**
  * Full-width Skill Detail Page
  * 全宽技能详情页
+ *
+ * Supports two surfaces:
+ *   - Standalone full-screen (default): owns the back arrow and full layout.
+ *   - Embedded right pane (`embedded={true}`): hides the back arrow and shows
+ *     a fullscreen toggle so SkillSplitView can promote it into a temporary
+ *     full-screen reading mode.
  */
 export type InstallMode = "copy" | "symlink";
 
-export function SkillFullDetailPage() {
+export interface SkillFullDetailPageProps {
+  /**
+   * When true, the page is rendered inside the SkillSplitView right pane.
+   * Hides the back arrow and shows a fullscreen-toggle button instead.
+   */
+  embedded?: boolean;
+  /**
+   * Whether the embedded view is currently promoted to fullscreen reading.
+   * Only consulted when `embedded === true`.
+   */
+  isFullscreen?: boolean;
+  /** Toggle fullscreen-reading mode. Only used when `embedded === true`. */
+  onToggleFullscreen?: () => void;
+  /** Selected skill id to render. Split View passes a debounced id here. */
+  skillId?: string | null;
+  /** Reports editor dirty state so Split View can guard skill switching. */
+  onDirtyStateChange?: (dirty: boolean) => void;
+}
+
+export function SkillFullDetailPage({
+  embedded = false,
+  isFullscreen = false,
+  onToggleFullscreen,
+  skillId,
+  onDirtyStateChange,
+}: SkillFullDetailPageProps = {}) {
   const { t, i18n } = useTranslation();
   const { showToast } = useToast();
   const runtimeCapabilities = getRuntimeCapabilities();
-  const selectedSkillId = useSkillStore((state) => state.selectedSkillId);
+  const storeSelectedSkillId = useSkillStore((state) => state.selectedSkillId);
   const skills = useSkillStore((state) => state.skills);
   const selectSkill = useSkillStore((state) => state.selectSkill);
   const deleteSkill = useSkillStore((state) => state.deleteSkill);
@@ -70,6 +98,12 @@ export function SkillFullDetailPage() {
   const loadSkills = useSkillStore((state) => state.loadSkills);
   const syncSkillFromRepo = useSkillStore((state) => state.syncSkillFromRepo);
   const saveSafetyReport = useSkillStore((state) => state.saveSafetyReport);
+  const rememberDetailTabState =
+    useSkillStore((state) => state.rememberDetailTabState) ??
+    (() => undefined);
+  const getDetailTabState =
+    useSkillStore((state) => state.getDetailTabState) ?? (() => undefined);
+  const selectedSkillId = skillId ?? storeSelectedSkillId;
 
   const selectedSkill = useMemo(
     () => skills.find((s) => s.id === selectedSkillId),
@@ -78,9 +112,7 @@ export function SkillFullDetailPage() {
 
   const [copyStatus, setCopyStatus] = useState<Record<string, boolean>>({});
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState<"preview" | "code" | "files">(
-    "preview",
-  );
+  const [activeTab, setActiveTab] = useState<SkillDetailTab>("preview");
 
   const translationMode = useSettingsStore((state) => state.translationMode);
   const skillInstallMethod = useSettingsStore(
@@ -117,6 +149,8 @@ export function SkillFullDetailPage() {
   const getTranslation = useSkillStore((state) => state.getTranslation);
   const clearTranslation = useSkillStore((state) => state.clearTranslation);
   const contentScrollRef = useRef<HTMLDivElement>(null);
+  const restoreScrollRef = useRef<number | null>(null);
+  const rememberScrollTimerRef = useRef<number | null>(null);
   const buildDefaultSnapshotNote = () =>
     t("skill.snapshotDefaultNote", {
       timestamp: new Date().toLocaleString(i18n.language || undefined),
@@ -176,10 +210,55 @@ export function SkillFullDetailPage() {
   useEffect(() => {
     if (selectedSkill) {
       setShowTranslation(false);
+      const cachedState = getDetailTabState(selectedSkill.id);
+      if (cachedState) {
+        setActiveTab(cachedState.activeTab);
+        restoreScrollRef.current = cachedState.scrollTop;
+      } else {
+        setActiveTab("preview");
+        restoreScrollRef.current = 0;
+      }
       // Restore persisted safety report when switching skills
       setSafetyReport(selectedSkill.safetyReport ?? null);
     }
-  }, [selectedSkill?.id]);
+  }, [getDetailTabState, selectedSkill?.id]);
+
+  useEffect(() => {
+    onDirtyStateChange?.(
+      (runtimeCapabilities.skillFileEditing &&
+        activeTab === "files" &&
+        fileEditorHasUnsavedChanges) ||
+        isEditModalOpen,
+    );
+  }, [
+    activeTab,
+    fileEditorHasUnsavedChanges,
+    isEditModalOpen,
+    onDirtyStateChange,
+    runtimeCapabilities.skillFileEditing,
+  ]);
+
+  useEffect(() => {
+    if (!selectedSkill) return;
+    rememberDetailTabState(selectedSkill.id, {
+      activeTab,
+      scrollTop: contentScrollRef.current?.scrollTop ?? 0,
+    });
+  }, [activeTab, rememberDetailTabState, selectedSkill]);
+
+  useEffect(() => {
+    if (restoreScrollRef.current === null || activeTab === "files") return;
+    const nextScrollTop = restoreScrollRef.current;
+    const handle = window.setTimeout(() => {
+      if (typeof contentScrollRef.current?.scrollTo === "function") {
+        contentScrollRef.current.scrollTo({ top: nextScrollTop });
+      } else if (contentScrollRef.current) {
+        contentScrollRef.current.scrollTop = nextScrollTop;
+      }
+      restoreScrollRef.current = null;
+    }, 0);
+    return () => window.clearTimeout(handle);
+  }, [activeTab, selectedSkill?.id]);
 
   useEffect(() => {
     let cancelled = false;
@@ -461,6 +540,16 @@ export function SkillFullDetailPage() {
   const handleContentScroll = () => {
     const scrollTop = contentScrollRef.current?.scrollTop ?? 0;
     setShowBackToTop(scrollTop > 480);
+    if (!selectedSkill) return;
+    if (rememberScrollTimerRef.current !== null) {
+      window.clearTimeout(rememberScrollTimerRef.current);
+    }
+    rememberScrollTimerRef.current = window.setTimeout(() => {
+      rememberDetailTabState(selectedSkill.id, {
+        activeTab,
+        scrollTop: contentScrollRef.current?.scrollTop ?? scrollTop,
+      });
+    }, 120);
   };
 
   const scrollToTop = () => {
@@ -507,93 +596,21 @@ export function SkillFullDetailPage() {
 
   return (
     <div className="flex-1 flex flex-col h-full bg-background overflow-hidden animate-in fade-in slide-in-from-right-4 duration-300">
-      {/* Header with back button */}
-      <div className="flex items-center justify-between px-6 py-4 border-b border-border sticky top-0 bg-background/80 backdrop-blur-md z-10">
-        <div className="flex items-center gap-4">
-          <button
-            onClick={() => {
-              requestLeaveFileEditing(() => {
-                selectSkill(null);
-              });
-            }}
-            className="p-2 -ml-2 text-muted-foreground hover:text-foreground hover:bg-accent rounded-lg transition-all active:scale-95"
-            title={t("common.back", "Back")}
-          >
-            <ArrowLeftIcon className="w-5 h-5" />
-          </button>
-          <SkillIcon
-            iconUrl={selectedSkill.icon_url}
-            iconEmoji={selectedSkill.icon_emoji}
-            backgroundColor={selectedSkill.icon_background}
-            name={selectedSkill.name}
-            size="lg"
-          />
-          <div>
-            <h2 className="font-bold text-xl text-foreground leading-tight">
-              {selectedSkill.name}
-            </h2>
-            <div className="mt-1 flex items-center gap-3 flex-wrap">
-              <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground font-medium">
-                <GlobeIcon className="w-3.5 h-3.5" />
-                {selectedSkill.author || t("skill.localStorage")}
-              </div>
-              <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-medium text-primary">
-                {t("skill.currentVersion", "Version")} v
-                {selectedSkill.currentVersion || 0}
-              </span>
-            </div>
-          </div>
-        </div>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={openSnapshotModal}
-            disabled={isCreatingSnapshot}
-            className="inline-flex items-center gap-2 rounded-full border border-border px-3 py-2 text-sm font-medium text-muted-foreground transition-all hover:border-primary/30 hover:bg-primary/5 hover:text-primary disabled:opacity-50"
-            title={t("skill.createSnapshot", "Create Snapshot")}
-          >
-            <SaveIcon className="h-4 w-4" />
-            {t("skill.snapshot", "Snapshot")}
-          </button>
-          <button
-            onClick={() => toggleFavorite(selectedSkill.id)}
-            className={`p-2.5 rounded-full transition-all active:scale-95 ${
-              selectedSkill.is_favorite
-                ? "text-yellow-500 hover:text-yellow-600"
-                : "text-muted-foreground hover:text-yellow-500 hover:bg-yellow-500/10"
-            }`}
-            title={
-              selectedSkill.is_favorite
-                ? t("skill.removeFavorite", "Remove Favorite")
-                : t("skill.addFavorite", "Add to Favorites")
-            }
-          >
-            <StarIcon
-              className={`w-5 h-5 ${selectedSkill.is_favorite ? "fill-current" : ""}`}
-            />
-          </button>
-          <button
-            onClick={() => setIsVersionHistoryOpen(true)}
-            className="p-2.5 text-muted-foreground hover:text-primary hover:bg-primary/10 rounded-full transition-all active:scale-95"
-            title={t("skill.versionHistory", "Version History")}
-          >
-            <HistoryIcon className="w-5 h-5" />
-          </button>
-          <button
-            onClick={() => setIsEditModalOpen(true)}
-            className="p-2.5 text-muted-foreground hover:text-primary hover:bg-primary/10 rounded-full transition-all active:scale-95"
-            title={t("skill.edit", "Edit Skill")}
-          >
-            <PencilIcon className="w-5 h-5" />
-          </button>
-          <button
-            onClick={handleDelete}
-            className="p-2.5 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-full transition-all active:scale-95"
-            title={t("common.delete", "Delete")}
-          >
-            <TrashIcon className="w-5 h-5" />
-          </button>
-        </div>
-      </div>
+      <SkillDetailActionHeader
+        selectedSkill={selectedSkill}
+        t={t}
+        showBackButton={!embedded}
+        showFullscreenToggle={embedded}
+        isFullscreen={isFullscreen}
+        isCreatingSnapshot={isCreatingSnapshot}
+        onBack={() => requestLeaveFileEditing(() => selectSkill(null))}
+        onOpenSnapshot={openSnapshotModal}
+        onToggleFavorite={() => toggleFavorite(selectedSkill.id)}
+        onOpenVersionHistory={() => setIsVersionHistoryOpen(true)}
+        onOpenEdit={() => setIsEditModalOpen(true)}
+        onDelete={handleDelete}
+        onToggleFullscreen={onToggleFullscreen}
+      />
 
       {/* Tabs */}
       <div className="flex items-center px-6 gap-6 border-b border-border bg-accent/20">
@@ -706,7 +723,11 @@ export function SkillFullDetailPage() {
             />
           </div>
         ) : (
-          <div className="max-w-6xl mx-auto p-6 w-full">
+          <div
+            className={
+              embedded ? "p-6 w-full" : "max-w-6xl mx-auto p-6 w-full"
+            }
+          >
             {activeTab === "preview" ? (
               <div className="grid grid-cols-1 gap-6 lg:grid-cols-3 lg:items-stretch">
                 <SkillPreviewPane

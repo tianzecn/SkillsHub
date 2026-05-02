@@ -42,8 +42,23 @@ export type SkillFilterType =
   | "installed"
   | "deployed"
   | "pending";
+/**
+ * @deprecated Split View merges list/gallery into a single compact list.
+ * Kept only to allow legacy persisted state to deserialize cleanly.
+ * Will be removed in a follow-up change after the split-view rollout settles.
+ */
 export type SkillViewMode = "gallery" | "list";
 export type SkillStoreView = "my-skills" | "distribution" | "store";
+
+export type SkillDetailTab = "preview" | "code" | "files";
+
+export interface SkillDetailTabState {
+  activeTab: SkillDetailTab;
+  scrollTop: number;
+}
+
+// LRU cap for the renderer-session-only detail-state cache.
+export const DETAIL_TAB_STATE_CACHE_LIMIT = 100;
 // Translation cache constraints
 // 翻译缓存限制
 const TRANSLATION_CACHE_MAX_SIZE = 200;
@@ -428,9 +443,25 @@ interface SkillState {
   isLoading: boolean;
   error: string | null;
 
-  // View mode
-  // 视图模式
+  /**
+   * @deprecated Split View merges list/gallery into a single compact list.
+   * Reads inside SkillSplitView are ignored; consumers outside (if any)
+   * should migrate to the unified split layout.
+   */
   viewMode: SkillViewMode;
+
+  // ─── Split View state (renderer-session scoped) ───
+  /** Whether the embedded detail is temporarily promoted to fullscreen reading. */
+  splitFullscreen: boolean;
+  /** In responsive collapsed mode (1024–1279), whether the list drawer is open. */
+  splitDrawerOpen: boolean;
+  /**
+   * Per-skill detail tab + scroll cache. Renderer-session only — never persisted.
+   * Bounded at {@link DETAIL_TAB_STATE_CACHE_LIMIT} via LRU eviction.
+   */
+  detailTabState: Map<string, SkillDetailTabState>;
+  /** Snapshot of selectedSkillId taken when entering batch mode (for restore on exit). */
+  previousSelectedSkillId: string | null;
 
   // Search & Filter
   searchQuery: string;
@@ -488,9 +519,15 @@ interface SkillState {
   ) => Promise<void>;
   getPlatformStatus: (name: string) => Promise<Record<string, boolean>>;
 
-  // View mode actions
-  // 视图模式操作
+  /** @deprecated See {@link SkillState.viewMode}. */
   setViewMode: (mode: SkillViewMode) => void;
+
+  // Split View actions
+  setSplitFullscreen: (fullscreen: boolean) => void;
+  setSplitDrawerOpen: (open: boolean) => void;
+  rememberDetailTabState: (skillId: string, state: SkillDetailTabState) => void;
+  getDetailTabState: (skillId: string) => SkillDetailTabState | undefined;
+  setPreviousSelectedSkillId: (id: string | null) => void;
 
   // Search & Filter Actions
   setSearchQuery: (query: string) => void;
@@ -564,6 +601,11 @@ export const useSkillStore = create<SkillState>()(
       isLoading: false,
       error: null,
       viewMode: "gallery" as SkillViewMode,
+      // Split View state defaults
+      splitFullscreen: false,
+      splitDrawerOpen: false,
+      detailTabState: new Map<string, SkillDetailTabState>(),
+      previousSelectedSkillId: null,
       searchQuery: "",
       filterType: "all",
       filterTags: [] as string[],
@@ -985,6 +1027,39 @@ export const useSkillStore = create<SkillState>()(
 
       setViewMode: (mode) => {
         set({ viewMode: mode });
+      },
+
+      setSplitFullscreen: (fullscreen) => {
+        set({ splitFullscreen: fullscreen });
+      },
+
+      setSplitDrawerOpen: (open) => {
+        set({ splitDrawerOpen: open });
+      },
+
+      rememberDetailTabState: (skillId, tabState) => {
+        set((state) => {
+          // LRU: deleting then setting moves the key to the end of insertion order.
+          const next = new Map(state.detailTabState);
+          if (next.has(skillId)) {
+            next.delete(skillId);
+          }
+          next.set(skillId, tabState);
+          while (next.size > DETAIL_TAB_STATE_CACHE_LIMIT) {
+            const oldestKey = next.keys().next().value;
+            if (oldestKey === undefined) break;
+            next.delete(oldestKey);
+          }
+          return { detailTabState: next };
+        });
+      },
+
+      getDetailTabState: (skillId) => {
+        return get().detailTabState.get(skillId);
+      },
+
+      setPreviousSelectedSkillId: (id) => {
+        set({ previousSelectedSkillId: id });
       },
 
       setSearchQuery: (query) => {
@@ -1550,9 +1625,13 @@ This skill helps you write tests.
           }
         }
         return {
+          // viewMode is @deprecated but kept in persisted shape so old clients
+          // upgrading to Split View don't lose the field on first hydrate.
           viewMode: state.viewMode,
           filterType: state.filterType,
           storeView: state.storeView,
+          // Persist selectedSkillId so Split View can restore it on next entry.
+          selectedSkillId: state.selectedSkillId,
           customStoreSources: state.customStoreSources,
           selectedStoreSourceId: state.selectedStoreSourceId,
           remoteStoreEntries: filteredEntries,

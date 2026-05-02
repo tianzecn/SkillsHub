@@ -922,6 +922,22 @@
     "disable": "Deaktivieren"
   },
   "skill": {
+    "split": {
+      "empty": "Wählen Sie einen Skill aus der Liste",
+      "emptyHint": "Durchsuchen Sie Ihre Skills links und wählen Sie einen aus, um Vorschau, Quellcode und Plattform-Deployment ohne Seitenwechsel zu sehen.",
+      "noSkillsHint": "Erstellen, importieren, scannen oder Filter anpassen, um hier Skills anzuzeigen.",
+      "unsavedTitle": "Ungespeicherte Skill-Änderungen",
+      "unsavedDescription": "Speichern oder verwerfen Sie Ihre Änderungen, bevor Sie den Skill wechseln.",
+      "fullscreen": "Im Vollbild öffnen",
+      "exitFullscreen": "Vollbild verlassen",
+      "batchSummary": "{{count}} ausgewählt",
+      "openListDrawer": "Skill-Liste öffnen",
+      "resizeHandleTooltip": "Ziehen, um die Skill-Liste zu ändern. Doppelklick setzt zurück.",
+      "toggleSelection": "Auswahl umschalten",
+      "listCount": "{{count}} Skills",
+      "compactHint": "Listen-Schublade",
+      "noBatchSelection": "Noch keine Skills ausgewählt"
+    },
     "title": "Skill",
     "name": "Skill-Name",
     "description": "Beschreibung",

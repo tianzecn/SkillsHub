@@ -79,6 +79,7 @@
     "@types/node": "^22.0.0",
     "@types/react": "^18.3.0",
     "@types/react-dom": "^18.3.0",
+    "@types/react-window": "^2.0.0",
     "@types/uuid": "^11.0.0",
     "@typescript-eslint/eslint-plugin": "^8.0.0",
     "@typescript-eslint/parser": "^8.0.0",
@@ -94,6 +95,7 @@
     "eslint": "^9.0.0",
     "eslint-plugin-react": "^7.37.0",
     "eslint-plugin-react-hooks": "^5.0.0",
+    "fflate": "^0.8.2",
     "framer-motion": "^12.26.1",
     "hast-util-sanitize": "^5.0.0",
     "highlight.js": "^11.8.0",
@@ -106,6 +108,7 @@
     "react": "^18.3.0",
     "react-dom": "^18.3.0",
     "react-i18next": "^15.0.0",
+    "react-window": "^2.2.7",
     "react-markdown": "^9.0.0",
     "rehype-highlight": "^6.0.0",
     "rehype-sanitize": "^6.0.0",
@@ -121,7 +124,6 @@
     "vite-plugin-electron-renderer": "^0.14.6",
     "vitest": "^2.0.0",
     "wait-on": "^8.0.0",
-    "zustand": "^5.0.0",
-    "fflate": "^0.8.2"
+    "zustand": "^5.0.0"
   }
 }

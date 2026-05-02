@@ -2,20 +2,16 @@ import React, { useEffect, useMemo, lazy, Suspense, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   CuboidIcon,
-  RefreshCwIcon,
   TrashIcon,
   StarIcon,
   SendIcon,
-  LayoutGridIcon,
-  ListIcon,
   FolderInputIcon,
   CheckSquareIcon,
   SquareIcon,
   XIcon,
   TagsIcon,
 } from "lucide-react";
-import { SkillGalleryCard } from "./SkillGalleryCard";
-import { SkillRenderBoundary } from "./SkillRenderBoundary";
+import { SkillSplitView } from "./SkillSplitView";
 import { useSkillStore } from "../../stores/skill.store";
 import { useSettingsStore } from "../../stores/settings.store";
 import { SkillQuickInstall } from "./SkillQuickInstall";
@@ -26,25 +22,18 @@ import { updateSkillTags, type SkillBatchTagMode } from "./batch-utils";
 import { filterVisibleSkills } from "../../services/skill-filter";
 import { getRuntimeCapabilities } from "../../runtime";
 
-const MAX_STAGGERED_CARDS = 10;
-const CARD_STAGGER_MS = 50;
+// Progressive rendering thresholds for the visible skill list.
 const LARGE_SKILL_LIST_THRESHOLD = 120;
 const INITIAL_SKILL_RENDER_COUNT = 120;
 const SKILL_RENDER_CHUNK_SIZE = 120;
 const SKILL_RENDER_CHUNK_DELAY_MS = 24;
 
-// Lazy load list view for better performance
-// 懒加载列表视图以提升性能
-const SkillListView = lazy(() =>
-  import("./SkillListView").then((m) => ({ default: m.SkillListView })),
-);
-const SkillFullDetailPage = lazy(() =>
-  import("./SkillFullDetailPage").then((m) => ({
-    default: m.SkillFullDetailPage,
-  })),
-);
+// Lazy load heavy panels for better performance.
 const SkillStore = lazy(() =>
   import("./SkillStore").then((m) => ({ default: m.SkillStore })),
+);
+const CreateSkillModal = lazy(() =>
+  import("./CreateSkillModal").then((m) => ({ default: m.CreateSkillModal })),
 );
 const SkillScanPreview = lazy(() =>
   import("./SkillScanPreview").then((m) => ({ default: m.SkillScanPreview })),
@@ -69,12 +58,8 @@ export function SkillManager() {
   const toggleFavorite = useSkillStore((state) => state.toggleFavorite);
   const updateSkill = useSkillStore((state) => state.updateSkill);
   const isLoading = useSkillStore((state) => state.isLoading);
-  const selectedSkillId = useSkillStore((state) => state.selectedSkillId);
-  const selectSkill = useSkillStore((state) => state.selectSkill);
   const filterType = useSkillStore((state) => state.filterType);
   const searchQuery = useSkillStore((state) => state.searchQuery);
-  const viewMode = useSkillStore((state) => state.viewMode);
-  const setViewMode = useSkillStore((state) => state.setViewMode);
   const storeView = useSkillStore((state) => state.storeView);
   const setStoreView = useSkillStore((state) => state.setStoreView);
   const setFilterType = useSkillStore((state) => state.setFilterType);
@@ -128,13 +113,15 @@ export function SkillManager() {
   const [showScanPreview, setShowScanPreview] = useState(false);
   const [showBatchDeployDialog, setShowBatchDeployDialog] = useState(false);
   const [showBatchTagDialog, setShowBatchTagDialog] = useState(false);
+  const [isCreateSkillModalOpen, setIsCreateSkillModalOpen] = useState(false);
   const [scannedSkills, setScannedSkills] = useState<ScannedSkill[]>([]);
   const [isScanning, setIsScanning] = useState(false);
   const [isSelectionMode, setIsSelectionMode] = useState(false);
   const [renderedSkillCount, setRenderedSkillCount] = useState(() =>
-    filteredSkills.length <= LARGE_SKILL_LIST_THRESHOLD
-      ? filteredSkills.length
-      : Math.min(INITIAL_SKILL_RENDER_COUNT, filteredSkills.length),
+    filteredSkills.length > LARGE_SKILL_LIST_THRESHOLD &&
+    filteredSkills.length < 200
+      ? Math.min(INITIAL_SKILL_RENDER_COUNT, filteredSkills.length)
+      : filteredSkills.length,
   );
   const [selectedSkillIds, setSelectedSkillIds] = useState<Set<string>>(
     new Set(),
@@ -194,11 +181,13 @@ export function SkillManager() {
   };
 
   const visibleSkills = useMemo(() => {
-    if (filteredSkills.length <= LARGE_SKILL_LIST_THRESHOLD) {
-      return filteredSkills;
+    if (
+      filteredSkills.length > LARGE_SKILL_LIST_THRESHOLD &&
+      filteredSkills.length < 200
+    ) {
+      return filteredSkills.slice(0, renderedSkillCount);
     }
-
-    return filteredSkills.slice(0, renderedSkillCount);
+    return filteredSkills;
   }, [filteredSkills, renderedSkillCount]);
   const selectedSkills = useMemo(
     () => filteredSkills.filter((skill) => selectedSkillIds.has(skill.id)),
@@ -277,29 +266,36 @@ export function SkillManager() {
   }, [loadSkills, loadDeployedStatus, runtimeCapabilities.skillDistribution]);
 
   useEffect(() => {
-    const targetCount =
-      filteredSkills.length <= LARGE_SKILL_LIST_THRESHOLD
-        ? filteredSkills.length
-        : Math.min(INITIAL_SKILL_RENDER_COUNT, filteredSkills.length);
+    if (storeView === "store") {
+      setIsSelectionMode((prev) => (prev ? false : prev));
+      setSelectedSkillIds((prev) => (prev.size === 0 ? prev : new Set()));
+    }
+  }, [storeView]);
 
-    if (filteredSkills.length <= LARGE_SKILL_LIST_THRESHOLD) {
-      if (renderedSkillCount !== targetCount) {
-        setRenderedSkillCount(targetCount);
+  useEffect(() => {
+    if (
+      filteredSkills.length <= LARGE_SKILL_LIST_THRESHOLD ||
+      filteredSkills.length >= 200
+    ) {
+      if (renderedSkillCount !== filteredSkills.length) {
+        setRenderedSkillCount(filteredSkills.length);
       }
       return;
     }
 
-    let disposed = false;
-    let timeoutId: number | undefined;
-
-    if (renderedSkillCount !== targetCount) {
-      setRenderedSkillCount(targetCount);
+    const initialCount = Math.min(
+      INITIAL_SKILL_RENDER_COUNT,
+      filteredSkills.length,
+    );
+    if (renderedSkillCount !== initialCount) {
+      setRenderedSkillCount(initialCount);
     }
 
+    let disposed = false;
+    let timeoutId: number | undefined;
     const scheduleNextChunk = () => {
       timeoutId = window.setTimeout(() => {
         if (disposed) return;
-
         setRenderedSkillCount((current) => {
           const next = Math.min(
             current + SKILL_RENDER_CHUNK_SIZE,
@@ -313,7 +309,7 @@ export function SkillManager() {
       }, SKILL_RENDER_CHUNK_DELAY_MS);
     };
 
-    if (INITIAL_SKILL_RENDER_COUNT < filteredSkills.length) {
+    if (initialCount < filteredSkills.length) {
       scheduleNextChunk();
     }
 
@@ -324,13 +320,6 @@ export function SkillManager() {
       }
     };
   }, [filteredSkills]);
-
-  useEffect(() => {
-    if (storeView === "store") {
-      setIsSelectionMode((prev) => (prev ? false : prev));
-      setSelectedSkillIds((prev) => (prev.size === 0 ? prev : new Set()));
-    }
-  }, [storeView]);
 
   // Store view: show the skill store page
   // 商店视图：显示技能商店页面
@@ -348,43 +337,19 @@ export function SkillManager() {
     );
   }
 
-  // If a skill is selected, show full detail page (same behavior for both gallery and list views)
-  // 如果选中了技能，显示全宽详情页（画廊和列表视图使用相同交互）
-  if (selectedSkillId && !isSelectionMode) {
-    return (
-      <Suspense
-        fallback={
-          <div className="flex h-full items-center justify-center">
-            <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-          </div>
-        }
-      >
-        <SkillRenderBoundary
-          resetKey={selectedSkillId}
-          title={t(
-            "skill.detailRenderError",
-            "This skill cannot be opened right now",
-          )}
-          description={t(
-            "skill.detailRenderErrorHint",
-            "This render error was contained so the page stays usable. You can go back to the list or retry loading the detail view now.",
-          )}
-          primaryActionLabel={t("common.back", "Back")}
-          onPrimaryAction={() => selectSkill(null)}
-          secondaryActionLabel={t("common.retry", "Retry")}
-          onSecondaryAction={() => {
-            void loadSkills().then(() => loadDeployedStatus());
-          }}
-        >
-          <SkillFullDetailPage />
-        </SkillRenderBoundary>
-      </Suspense>
-    );
-  }
+  // Note: Split View renders the embedded detail in the right pane on every
+  // render, so we no longer short-circuit to a full-screen SkillFullDetailPage
+  // when a skill is selected. The legacy `<700px` fallback path will be added
+  // back in tasks.md §6 (responsive collapse).
 
   const toggleSelectionMode = () => {
     setIsSelectionMode((prev) => !prev);
     setSelectedSkillIds((prev) => (prev.size === 0 ? prev : new Set()));
+  };
+
+  const exitSelectionMode = () => {
+    setIsSelectionMode(false);
+    setSelectedSkillIds(new Set());
   };
 
   const toggleSkillSelection = (skillId: string) => {
@@ -602,75 +567,10 @@ export function SkillManager() {
                 </p>
               </div>
 
-              <div className="flex items-center gap-2 self-start lg:self-center lg:justify-end">
-                {!isSelectionMode ? (
-                  <button
-                    onClick={toggleSelectionMode}
-                    className="inline-flex items-center gap-2 rounded-xl border border-border bg-background px-3 py-2 text-sm font-medium text-foreground transition-colors hover:border-primary/25 hover:bg-card"
-                    title={t("skill.batchManage", "Batch Manage")}
-                  >
-                    <CheckSquareIcon className="w-4 h-4" />
-                    {t("skill.batchManage", "Batch Manage")}
-                  </button>
-                ) : null}
-                <div className="flex items-center bg-muted rounded-lg p-0.5">
-                  <button
-                    onClick={() => setViewMode("gallery")}
-                    className={`p-2 rounded-md transition-colors ${
-                      viewMode === "gallery"
-                        ? "bg-background text-foreground shadow-sm"
-                        : "text-muted-foreground hover:text-foreground"
-                    }`}
-                    title={t("skill.galleryView", "Gallery View")}
-                  >
-                    <LayoutGridIcon className="w-4 h-4" />
-                  </button>
-                  <button
-                    onClick={() => setViewMode("list")}
-                    className={`p-2 rounded-md transition-colors ${
-                      viewMode === "list"
-                        ? "bg-background text-foreground shadow-sm"
-                        : "text-muted-foreground hover:text-foreground"
-                    }`}
-                    title={t("skill.listView", "List View")}
-                  >
-                    <ListIcon className="w-4 h-4" />
-                  </button>
-                </div>
-                {runtimeCapabilities.skillLocalScan && (
-                  <>
-                    <div className="h-4 w-px bg-border" />
-                    <button
-                      onClick={() => handleScanLocal(customSkillScanPaths)}
-                      disabled={isScanning}
-                      className="p-2 text-muted-foreground hover:text-foreground rounded-lg hover:bg-accent transition-colors disabled:opacity-50"
-                      title={t("skill.scanLocal", "Scan local skills")}
-                    >
-                      <FolderInputIcon
-                        className={`w-4 h-4 ${isScanning ? "animate-spin" : ""}`}
-                      />
-                    </button>
-                  </>
-                )}
-                <div className="h-4 w-px bg-border" />
-                <button
-                  onClick={async () => {
-                    await loadSkills();
-                    if (runtimeCapabilities.skillDistribution) {
-                      await loadDeployedStatus();
-                    }
-                  }}
-                  className="p-2 text-muted-foreground hover:text-foreground rounded-lg hover:bg-accent transition-colors"
-                  title={t("settings.refresh")}
-                >
-                  <RefreshCwIcon
-                    className={`w-4 h-4 ${isLoading ? "animate-spin" : ""}`}
-                  />
-                </button>
-              </div>
+              <div className="hidden items-center gap-2 self-start lg:self-center lg:justify-end" />
             </div>
 
-            {isSelectionMode ? (
+            {false && isSelectionMode ? (
               <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-primary/15 bg-primary/[0.06] p-2">
                 <div className="px-3 py-2">
                   <div className="text-[11px] font-medium uppercase tracking-wide text-primary/80">
@@ -758,85 +658,46 @@ export function SkillManager() {
           </div>
         </div>
 
-        {/* Content */}
-        <div className="flex-1 overflow-y-auto scrollbar-hide">
-          {viewMode === "list" ? (
-            /* List View */
-            /* 列表视图 */
-            <Suspense
-              fallback={
-                <div className="flex items-center justify-center h-full">
-                  <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-                </div>
+        {/* Split View content (compact list + embedded detail) */}
+        <div className="flex-1 overflow-hidden">
+          <SkillSplitView
+            visibleSkills={visibleSkills}
+            allSkills={skills}
+            selectionMode={isSelectionMode}
+            selectedSkillIds={selectedSkillIds}
+            selectedSkills={selectedSkills}
+            onToggleSelection={toggleSkillSelection}
+            onEnterSelectionMode={toggleSelectionMode}
+            onExitSelectionMode={exitSelectionMode}
+            onCreateSkill={() => setIsCreateSkillModalOpen(true)}
+            onScanLocal={
+              runtimeCapabilities.skillLocalScan
+                ? () => handleScanLocal(customSkillScanPaths)
+                : undefined
+            }
+            onOpenStore={
+              runtimeCapabilities.skillStore
+                ? () => setStoreView("store")
+                : undefined
+            }
+            onRefresh={async () => {
+              await loadSkills();
+              if (runtimeCapabilities.skillDistribution) {
+                await loadDeployedStatus();
               }
-            >
-              <SkillListView
-                skills={visibleSkills}
-                onQuickInstall={setQuickInstallSkill}
-                onRequestDelete={(id, name) =>
-                  setDeleteConfirm({
-                    isOpen: true,
-                    skillIds: [id],
-                    skillNames: [name],
-                  })
-                }
-                selectionMode={isSelectionMode}
-                selectedSkillIds={selectedSkillIds}
-                onToggleSelection={toggleSkillSelection}
-              />
-            </Suspense>
-          ) : (
-            /* Gallery View */
-            /* 画廊视图 */
-            <div className="p-6">
-              {filteredSkills.length === 0 ? (
-                <div className="h-full flex flex-col items-center justify-center text-muted-foreground animate-in fade-in zoom-in-95 duration-500 py-20">
-                  <div className="p-8 bg-accent/30 rounded-full mb-6 relative">
-                    <CuboidIcon className="w-20 h-20 opacity-20" />
-                    <div className="absolute inset-0 border-4 border-primary/10 rounded-full animate-pulse" />
-                  </div>
-                  <h3 className="text-xl font-semibold text-foreground mb-2">
-                    {emptyStateTitle}
-                  </h3>
-                  <p className="text-sm opacity-70 mb-8 max-w-sm text-center">
-                    {emptyStateHint}
-                  </p>
-                </div>
-              ) : (
-                <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
-                  {visibleSkills.map((skill, index) => {
-                    const isSelected = selectedSkillIds.has(skill.id);
-
-                    return (
-                      <SkillGalleryCard
-                        key={skill.id}
-                        animationDelayMs={
-                          filteredSkills.length > LARGE_SKILL_LIST_THRESHOLD
-                            ? 0
-                            : Math.min(index, MAX_STAGGERED_CARDS) *
-                              CARD_STAGGER_MS
-                        }
-                        isSelected={isSelected}
-                        isSelectionMode={isSelectionMode}
-                        onDelete={(selectedSkill) =>
-                          setDeleteConfirm({
-                            isOpen: true,
-                            skillIds: [selectedSkill.id],
-                            skillNames: [selectedSkill.name],
-                          })
-                        }
-                        onOpen={selectSkill}
-                        onQuickInstall={setQuickInstallSkill}
-                        onToggleFavorite={toggleFavorite}
-                        onToggleSelection={toggleSkillSelection}
-                        skill={skill}
-                      />
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-          )}
+            }}
+            isRefreshing={isLoading}
+            isScanning={isScanning}
+            emptyTitle={emptyStateTitle}
+            emptyHint={emptyStateHint}
+            onSelectAllVisible={handleSelectAllVisible}
+            onBatchFavorite={handleBatchFavorite}
+            onBatchTags={handleBatchTags}
+            onBatchDeploy={handleBatchDeploy}
+            onBatchDelete={handleBatchDelete}
+            allVisibleSelected={allVisibleSelected}
+            canDeploy={runtimeCapabilities.skillDistribution}
+          />
         </div>
       </div>
 
@@ -847,6 +708,15 @@ export function SkillManager() {
           skill={quickInstallSkill}
           onClose={() => setQuickInstallSkill(null)}
         />
+      )}
+
+      {isCreateSkillModalOpen && (
+        <Suspense fallback={null}>
+          <CreateSkillModal
+            isOpen={isCreateSkillModalOpen}
+            onClose={() => setIsCreateSkillModalOpen(false)}
+          />
+        </Suspense>
       )}
 
       {/* Scan Preview Modal */}

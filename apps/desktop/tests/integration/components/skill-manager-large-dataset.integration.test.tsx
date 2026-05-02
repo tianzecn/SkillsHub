@@ -25,14 +25,6 @@ vi.mock("../../../src/renderer/components/ui/Toast", () => ({
   useToast: () => useToastMock(),
 }));
 
-vi.mock("../../../src/renderer/components/skill/SkillGalleryCard", () => ({
-  SkillGalleryCard: ({ skill }: { skill: Skill }) => (
-    <article data-testid="skill-card">
-      <h3>{skill.name}</h3>
-    </article>
-  ),
-}));
-
 vi.mock("../../../src/renderer/components/skill/SkillQuickInstall", () => ({
   SkillQuickInstall: () => null,
 }));
@@ -74,6 +66,14 @@ function createSkillStoreState(skills: Skill[]) {
     isLoading: false,
     selectedSkillId: null,
     selectSkill: vi.fn(),
+    splitFullscreen: false,
+    setSplitFullscreen: vi.fn(),
+    splitDrawerOpen: false,
+    setSplitDrawerOpen: vi.fn(),
+    previousSelectedSkillId: null,
+    setPreviousSelectedSkillId: vi.fn(),
+    getDetailTabState: vi.fn(),
+    rememberDetailTabState: vi.fn(),
     filterType: "all",
     searchQuery: "",
     viewMode: "gallery",
@@ -100,6 +100,8 @@ describe("SkillManager large dataset integration", () => {
         customSkillScanPaths: [],
         translationMode: "full",
         skillInstallMethod: "symlink",
+        splitListWidth: 320,
+        setSplitListWidth: vi.fn(),
       }),
     );
   });
@@ -112,7 +114,7 @@ describe("SkillManager large dataset integration", () => {
     vi.useRealTimers();
   });
 
-  it("renders only the initial chunk for 1000 skills in gallery mode", async () => {
+  it("renders the split-view icon strip without mounting the whole large list", async () => {
     const skills = Array.from({ length: 1000 }, (_, index) => createSkill(index));
     const skillStoreState = createSkillStoreState(skills);
     useSkillStoreMock.mockImplementation((selector) => selector(skillStoreState));
@@ -126,9 +128,9 @@ describe("SkillManager large dataset integration", () => {
 
     expect(screen.getByText("skill-0000")).toBeInTheDocument();
     expect(screen.queryByText("skill-0999")).not.toBeInTheDocument();
-    expect(screen.getAllByTestId("skill-card")).toHaveLength(120);
+    expect(screen.getByRole("button", { name: "Batch Manage" })).toBeInTheDocument();
     expect(
-      screen.getByText("Rendering 120/1000 in chunks"),
+      document.querySelector('[data-split-layout="collapsed"]'),
     ).toBeInTheDocument();
   });
 });

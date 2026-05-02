@@ -48,6 +48,11 @@ export const FONT_SIZES = [
 
 const DEFAULT_TAGS_SECTION_HEIGHT = 140;
 
+// Skill split-view list pane width bounds (px).
+export const SPLIT_LIST_WIDTH_MIN = 280;
+export const SPLIT_LIST_WIDTH_MAX = 480;
+export const DEFAULT_SPLIT_LIST_WIDTH = 320;
+
 type Hs = { hue: number; saturation: number };
 
 const clamp = (n: number, min: number, max: number): number =>
@@ -254,6 +259,9 @@ interface SettingsState {
   skillTagsSectionHeight: number;
   isSkillTagsSectionCollapsed: boolean;
 
+  // Skill split-view layout settings
+  splitListWidth: number;
+
   // AI model configuration (legacy single model compatibility)
   // SECURITY NOTE: aiApiKey is stored in localStorage (plaintext).
   // See WebDAV comment above for migration guidance.
@@ -334,6 +342,7 @@ interface SettingsState {
   setIsTagsSectionCollapsed: (collapsed: boolean) => void;
   setSkillTagsSectionHeight: (height: number) => void;
   setIsSkillTagsSectionCollapsed: (collapsed: boolean) => void;
+  setSplitListWidth: (width: number) => void;
   setAiProvider: (provider: string) => void;
   setAiApiKey: (key: string) => void;
   setAiApiUrl: (url: string) => void;
@@ -446,6 +455,7 @@ export const useSettingsStore = create<SettingsState>()(
         isTagsSectionCollapsed: false,
         skillTagsSectionHeight: DEFAULT_TAGS_SECTION_HEIGHT,
         isSkillTagsSectionCollapsed: false,
+        splitListWidth: DEFAULT_SPLIT_LIST_WIDTH,
         aiProvider: "openai",
         aiApiKey: "",
         aiApiUrl: "",
@@ -671,6 +681,15 @@ export const useSettingsStore = create<SettingsState>()(
           setTouched({ skillTagsSectionHeight: height }),
         setIsSkillTagsSectionCollapsed: (collapsed) =>
           setTouched({ isSkillTagsSectionCollapsed: collapsed }),
+        setSplitListWidth: (width) => {
+          const clamped = Math.max(
+            SPLIT_LIST_WIDTH_MIN,
+            Math.min(SPLIT_LIST_WIDTH_MAX, Math.round(width)),
+          );
+          if (clamped !== get().splitListWidth) {
+            setTouched({ splitListWidth: clamped });
+          }
+        },
         setAiProvider: (provider) => setTouched({ aiProvider: provider }),
         setAiApiKey: (key) => setTouched({ aiApiKey: key }),
         setAiApiUrl: (url) => setTouched({ aiApiUrl: url }),
@@ -938,12 +957,21 @@ export const useSettingsStore = create<SettingsState>()(
         if (typeof next.autoScanStoreSkillsBeforeInstall !== "boolean") {
           next.autoScanStoreSkillsBeforeInstall = false;
         }
+        if (typeof next.splitListWidth !== "number") {
+          next.splitListWidth = DEFAULT_SPLIT_LIST_WIDTH;
+        } else {
+          next.splitListWidth = Math.max(
+            SPLIT_LIST_WIDTH_MIN,
+            Math.min(SPLIT_LIST_WIDTH_MAX, Math.round(next.splitListWidth)),
+          );
+        }
         return next;
       },
       onRehydrateStorage: () => (state) => {
         syncSettingsToMain({
           customSkillPlatformPaths: state?.customSkillPlatformPaths || {},
           skillPlatformOrder: state?.skillPlatformOrder || [],
+          splitListWidth: state?.splitListWidth || DEFAULT_SPLIT_LIST_WIDTH,
         });
       },
     },

@@ -10,6 +10,7 @@ export interface Settings {
   defaultFolderId?: string;
   customSkillPlatformPaths?: Record<string, string>;
   skillPlatformOrder?: string[];
+  splitListWidth?: number;
   lastManualBackupAt?: string;
   lastManualBackupVersion?: string;
   sync?: SyncSettings;
@@ -50,6 +51,7 @@ export const DEFAULT_SETTINGS: Settings = {
   autoSave: true,
   customSkillPlatformPaths: {},
   skillPlatformOrder: [],
+  splitListWidth: 320,
   sync: {
     enabled: false,
     provider: 'manual',
