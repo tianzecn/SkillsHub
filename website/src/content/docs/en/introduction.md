@@ -58,15 +58,15 @@ Export to JSON, YAML, or CSV. Easily integrate into your workflow or codebase.
 
 ## License
 
-PromptHub is licensed under [AGPL-3.0](https://github.com/tianzecn/PromptHub/blob/main/LICENSE).
+PromptHub is licensed under [AGPL-3.0](https://github.com/tianzecn/SkillsHub/blob/main/LICENSE).
 
 ## Contributing
 
 We welcome all forms of contribution:
 
-- 🐛 [Report Bugs](https://github.com/tianzecn/PromptHub/issues/new?template=bug_report.md)
-- 💡 [Feature Requests](https://github.com/tianzecn/PromptHub/issues/new?template=feature_request.md)
-- 🔧 [Submit Pull Requests](https://github.com/tianzecn/PromptHub/pulls)
+- 🐛 [Report Bugs](https://github.com/tianzecn/SkillsHub/issues/new?template=bug_report.md)
+- 💡 [Feature Requests](https://github.com/tianzecn/SkillsHub/issues/new?template=feature_request.md)
+- 🔧 [Submit Pull Requests](https://github.com/tianzecn/SkillsHub/pulls)
 - 🌍 Help with translations
 
 ## Next Steps

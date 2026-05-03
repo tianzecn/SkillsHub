@@ -52,7 +52,7 @@ export const Hero = ({ dict }: HeroProps) => {
               <Download className="w-5 h-5" />
               {dict.download}
             </Button>
-            <Button variant="outline" size="lg" href="https://github.com/tianzecn/PromptHub">
+            <Button variant="outline" size="lg" href="https://github.com/tianzecn/SkillsHub">
               {dict.github}
               <ChevronRight className="w-4 h-4" />
             </Button>

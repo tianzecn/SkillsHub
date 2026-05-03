@@ -105,6 +105,52 @@ describe("SkillStore remote loading", () => {
     });
   });
 
+  it("surfaces network failures for marketplace-json custom stores", async () => {
+    const fetchRemoteContent = vi
+      .fn()
+      .mockRejectedValue(
+        new Error(
+          "Error invoking remote method 'skill:fetchRemoteContent': Error: getaddrinfo ENOTFOUND api.github.com",
+        ),
+      );
+
+    installWindowMocks({
+      api: {
+        skill: {
+          fetchRemoteContent,
+          scanLocalPreview: vi.fn().mockResolvedValue([]),
+        },
+      },
+    });
+
+    useSkillStore.setState({
+      customStoreSources: [
+        {
+          id: "custom-marketplace",
+          name: "Custom Marketplace",
+          type: "marketplace-json",
+          url: "https://api.github.com/repos/example/skills",
+          enabled: true,
+          createdAt: Date.now(),
+        },
+      ],
+      selectedStoreSourceId: "custom-marketplace",
+    });
+
+    await act(async () => {
+      await renderWithI18n(<SkillStore />, { language: "en" });
+    });
+
+    await waitFor(() => {
+      expect(
+        useSkillStore.getState().remoteStoreEntries["custom-marketplace"]
+          ?.error,
+      ).toBe(
+        "Cannot connect to the remote skill store. Check your network, DNS, proxy, or VPN settings, then try again.",
+      );
+    });
+  });
+
   it("does not auto-sync unrelated remote stores on initial open", async () => {
     const fetchRemoteContent = vi.fn(async (url: string) => {
       if (url === "https://api.github.com/repos/anthropics/skills") {

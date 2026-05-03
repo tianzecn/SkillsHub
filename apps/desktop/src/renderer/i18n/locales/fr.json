@@ -1099,6 +1099,8 @@
     "loadingCustomStore": "Chargement du contenu de la boutique personnalisée...",
     "remoteStoreRetry": "Réessayer",
     "remoteStoreRateLimitHint": "Limite de taux de l'API GitHub atteinte. Réessayez dans quelques minutes ou ajoutez un token GitHub dans les paramètres.",
+    "remoteStoreNetworkHint": "Impossible de se connecter au store de skills distant. Vérifiez votre réseau, DNS, proxy ou VPN, puis réessayez.",
+    "remoteStoreConnectionHint": "Le store de skills distant ne répond pas. Vérifiez votre connexion ou réessayez plus tard.",
     "invalidGitRepo": "Veuillez saisir une URL de dépôt GitHub ou utiliser un chemin de répertoire local",
     "skillsCount": "compétences",
     "adding": "Ajout en cours...",

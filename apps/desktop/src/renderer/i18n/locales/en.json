@@ -1105,6 +1105,8 @@
     "remoteStoreLoadFailed": "Failed to load remote store",
     "remoteStoreRetry": "Retry",
     "remoteStoreRateLimitHint": "GitHub API rate limit reached. Try again in a few minutes, or add a GitHub token in settings.",
+    "remoteStoreNetworkHint": "Cannot connect to the remote skill store. Check your network, DNS, proxy, or VPN settings, then try again.",
+    "remoteStoreConnectionHint": "The remote skill store did not respond. Check your connection or try again later.",
     "remoteStorePartialFailure": "{{count}} skill file(s) failed to download. Click refresh to retry.",
     "invalidGitRepo": "Please enter a GitHub repository URL, or use a local directory path instead",
     "skillsCount": "skills",

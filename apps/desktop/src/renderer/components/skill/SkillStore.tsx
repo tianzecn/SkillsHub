@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type { TFunction } from "i18next";
 import { useTranslation } from "react-i18next";
 import {
   SearchIcon,
@@ -173,6 +174,43 @@ function parseJson<T>(raw: string, fallback: T): T {
 
 function getErrorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
+}
+
+function getRemoteStoreErrorMessage(error: unknown, t: TFunction): string {
+  const message = getErrorMessage(error);
+
+  if (/GitHub API rate limit reached/i.test(message)) {
+    return t(
+      "skill.remoteStoreRateLimitHint",
+      "GitHub API rate limit reached. Try again in a few minutes, or add a GitHub token in settings.",
+    );
+  }
+
+  if (
+    /ENOTFOUND|EAI_AGAIN|ERR_NAME_NOT_RESOLVED|Failed to resolve remote host|getaddrinfo/i.test(
+      message,
+    )
+  ) {
+    return t(
+      "skill.remoteStoreNetworkHint",
+      "Cannot connect to the remote skill store. Check your network, DNS, proxy, or VPN settings, then try again.",
+    );
+  }
+
+  if (
+    /ECONNRESET|ECONNREFUSED|ETIMEDOUT|ERR_NETWORK|socket hang up|timed out/i.test(
+      message,
+    )
+  ) {
+    return t(
+      "skill.remoteStoreConnectionHint",
+      "The remote skill store did not respond. Check your connection or try again later.",
+    );
+  }
+
+  return (
+    message || t("skill.remoteStoreLoadFailed", "Failed to load remote store")
+  );
 }
 
 function isDefined<T>(value: T | null | undefined): value is T {
@@ -425,9 +463,7 @@ export function SkillStore() {
       }
       visited.add(resolvedUrl);
 
-      const raw = await window.api.skill
-        .fetchRemoteContent(resolvedUrl)
-        .catch(() => null);
+      const raw = await window.api.skill.fetchRemoteContent(resolvedUrl);
       if (!raw) return [];
 
       const data = parseJson<MarketplaceRegistryDocument>(raw, {});
@@ -675,10 +711,7 @@ export function SkillStore() {
           // Preserve previously-cached skills (if any) so the UI isn't wiped.
           setRemoteStoreEntry(sourceId, {
             loadedAt: cachedEntry?.loadedAt || 0,
-            error:
-              error instanceof Error
-                ? error.message
-                : t("skill.remoteStoreLoadFailed", "Failed to load remote store"),
+            error: getRemoteStoreErrorMessage(error, t),
             skills: cachedEntry?.skills || [],
           });
         } finally {

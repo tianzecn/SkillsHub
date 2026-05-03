@@ -1099,6 +1099,8 @@
     "loadingCustomStore": "Lade benutzerdefinierten Store-Inhalt...",
     "remoteStoreRetry": "Erneut versuchen",
     "remoteStoreRateLimitHint": "GitHub API-Ratenlimit erreicht. Versuchen Sie es in einigen Minuten erneut oder fügen Sie in den Einstellungen ein GitHub-Token hinzu.",
+    "remoteStoreNetworkHint": "Verbindung zum entfernten Skill-Store nicht möglich. Prüfen Sie Netzwerk, DNS, Proxy oder VPN und versuchen Sie es erneut.",
+    "remoteStoreConnectionHint": "Der entfernte Skill-Store antwortet nicht. Prüfen Sie Ihre Verbindung oder versuchen Sie es später erneut.",
     "invalidGitRepo": "Bitte geben Sie eine GitHub-Repository-URL ein oder verwenden Sie stattdessen einen lokalen Verzeichnispfad",
     "skillsCount": "Skills",
     "adding": "Wird hinzugefügt...",

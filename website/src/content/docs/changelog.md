@@ -19,8 +19,8 @@
 
 ### 维护 / Maintenance
 
-- 🔁 **发布源切换到 `tianzecn/PromptHub`**：桌面端自动更新、GitHub Release 发布配置、自部署 Web 镜像地址、官网与多语言下载链接已统一指向当前仓库，后续设备会从新的 Release 源检查和安装更新
-  - **Release Source Switched to `tianzecn/PromptHub`**: Desktop auto-update, GitHub Release publishing config, self-hosted Web image references, website metadata, and localized download links now point to the current repository so future devices check and install updates from the new Release source
+- 🔁 **发布源切换到 `tianzecn/SkillsHub`**：桌面端自动更新、GitHub Release 发布配置、自部署 Web 镜像地址、官网与多语言下载链接已统一指向当前仓库，后续设备会从新的 Release 源检查和安装更新
+  - **Release Source Switched to `tianzecn/SkillsHub`**: Desktop auto-update, GitHub Release publishing config, self-hosted Web image references, website metadata, and localized download links now point to the current repository so future devices check and install updates from the new Release source
 
 ## [0.5.5] - 2026-04-24
 

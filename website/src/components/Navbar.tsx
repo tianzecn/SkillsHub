@@ -26,7 +26,7 @@ export const Navbar = ({ lang, dict, currentPath = '' }: NavbarProps) => {
   const [stars, setStars] = useState<string>('100+');
 
   useEffect(() => {
-    fetch('https://api.github.com/repos/tianzecn/PromptHub')
+    fetch('https://api.github.com/repos/tianzecn/SkillsHub')
       .then(res => res.json())
       .then(data => {
         if (data.stargazers_count) {
@@ -141,7 +141,7 @@ export const Navbar = ({ lang, dict, currentPath = '' }: NavbarProps) => {
           <div className="h-4 w-px bg-white/10 mx-1" />
 
           <a 
-            href="https://github.com/tianzecn/PromptHub"
+            href="https://github.com/tianzecn/SkillsHub"
             target="_blank"
             rel="noreferrer" 
             className="flex items-center gap-2 text-xs text-zinc-400 hover:text-white bg-white/5 px-3 py-1.5 rounded-full border border-white/5 transition-all hover:border-white/20 hover:bg-white/10"

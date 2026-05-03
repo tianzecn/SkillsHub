@@ -1099,6 +1099,8 @@
     "loadingCustomStore": "カスタムストアのコンテンツを読み込み中...",
     "remoteStoreRetry": "再試行",
     "remoteStoreRateLimitHint": "GitHub API のレート制限に達しました。数分後に再試行するか、設定で GitHub トークンを追加してください。",
+    "remoteStoreNetworkHint": "リモート Skill ストアに接続できません。ネットワーク、DNS、プロキシ、VPN 設定を確認してから再試行してください。",
+    "remoteStoreConnectionHint": "リモート Skill ストアが応答しません。接続を確認するか、後でもう一度お試しください。",
     "invalidGitRepo": "GitHub リポジトリの URL を入力するか、ローカルディレクトリパスを使用してください",
     "skillsCount": "個のスキル",
     "adding": "追加中...",

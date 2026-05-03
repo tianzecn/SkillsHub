@@ -32,7 +32,7 @@ interface UpdateRequestOptions {
 const OFFICIAL_REPO = {
   provider: "github" as const,
   owner: "tianzecn",
-  repo: "PromptHub",
+  repo: "SkillsHub",
   releaseType: "release" as const,
 };
 
@@ -51,7 +51,11 @@ function normalizeUpdateOptions(
 function applyUpdateChannel(channel: UpdateChannel): void {
   autoUpdater.allowPrerelease = channel === "preview";
   autoUpdater.channel = channel === "preview" ? "preview" : "latest";
-  if (channel === "stable" && process.platform === "win32" && process.arch === "arm64") {
+  if (
+    channel === "stable" &&
+    process.platform === "win32" &&
+    process.arch === "arm64"
+  ) {
     autoUpdater.channel = "arm64";
   }
 }
@@ -66,10 +70,10 @@ function getFeedSuffix(channel: UpdateChannel): string {
 function getMirrorSources(channel: UpdateChannel): string[] {
   const suffix = getFeedSuffix(channel);
   return [
-    `https://ghfast.top/https://github.com/tianzecn/PromptHub/releases/${suffix}`,
-    `https://gh-proxy.com/https://github.com/tianzecn/PromptHub/releases/${suffix}`,
-    `https://hub.gitmirror.com/https://github.com/tianzecn/PromptHub/releases/${suffix}`,
-    `https://cors.isteed.cc/github.com/tianzecn/PromptHub/releases/${suffix}`,
+    `https://ghfast.top/https://github.com/tianzecn/SkillsHub/releases/${suffix}`,
+    `https://gh-proxy.com/https://github.com/tianzecn/SkillsHub/releases/${suffix}`,
+    `https://hub.gitmirror.com/https://github.com/tianzecn/SkillsHub/releases/${suffix}`,
+    `https://cors.isteed.cc/github.com/tianzecn/SkillsHub/releases/${suffix}`,
   ];
 }
 
@@ -92,6 +96,36 @@ function applyMirrorDownloadSettings(useMirror: boolean) {
     useMultipleRangeRequest?: boolean;
   };
   updater.useMultipleRangeRequest = !useMirror;
+}
+
+function getUpdateErrorMessage(
+  error: unknown,
+  action: "check" | "download",
+): string {
+  const rawMessage = error instanceof Error ? error.message : String(error);
+  const isGitHubAccess404 =
+    rawMessage.includes("github.com/tianzecn/SkillsHub") &&
+    rawMessage.includes("404");
+
+  if (isGitHubAccess404) {
+    return [
+      action === "check" ? "Update check failed." : "Update download failed.",
+      "The GitHub release source is not publicly accessible. GitHub returns 404 for private or inaccessible repositories, so the desktop app cannot read the update feed anonymously.",
+      "Please make the release repository public, or publish update assets to a public release/mirror source and try again.",
+    ].join("\n");
+  }
+
+  if (rawMessage.includes("404") || rawMessage.includes("Cannot find")) {
+    return [
+      action === "check"
+        ? "Update check failed: Cannot find update manifest file in the latest release."
+        : "Update download failed: Cannot find update files in the latest release.",
+      "更新失败：无法在最新版本中找到更新配置文件或安装包。",
+      "请前往 GitHub Releases 页面手动下载安装。",
+    ].join("\n");
+  }
+
+  return rawMessage;
 }
 
 // Compare version numbers, return 1 (a > b), -1 (a < b), 0 (a == b)
@@ -379,15 +413,8 @@ export function initUpdater(win: BrowserWindow) {
   // 检查更新出错
   autoUpdater.on("error", (error) => {
     console.error("Update error:", error);
-    let message = (error && (error as Error).message) || String(error);
-    // Handle 404 error for missing yml files
-    // 处理找不到 yml 文件的 404 错误
-    if (message.includes("404") || message.includes("Cannot find")) {
-      message =
-        "Update check failed: Cannot find update manifest file in the latest release.\n" +
-        "更新检查失败：无法在最新版本中找到更新配置文件。\n" +
-        "请前往 GitHub Releases 页面手动下载安装。";
-    } else if (message.includes("ZIP file not provided")) {
+    let message = getUpdateErrorMessage(error, "check");
+    if (message.includes("ZIP file not provided")) {
       message =
         "Auto update requires ZIP installer, but current Release does not have corresponding ZIP file. Please go to GitHub Releases page to download manually, or wait for next version to fix auto update.";
       // 自动更新需要 ZIP 安装包，但当前版本的 Release 中没有对应的 ZIP 文件。请前往 GitHub Releases 页面手动下载安装，或等待下一个版本修复自动更新。
@@ -738,115 +765,132 @@ export function registerUpdaterIPC() {
 
   // 检查更新
   // Check for updates - respect user's mirror preference
-  ipcMain.handle("updater:check", async (_event, request?: boolean | UpdateRequestOptions) => {
-    if (isDev) {
-      return {
-        success: false,
-        error: "Update check disabled in development mode",
-      };
-    }
-
-    const { useMirror, channel } = normalizeUpdateOptions(request);
-    applyUpdateChannel(channel);
-    applyMirrorDownloadSettings(useMirror);
-
-    // If mirror is enabled, use mirror sources directly
-    // 如果启用了镜像，直接使用镜像源（不先尝试官方）
-    if (useMirror) {
-      for (const mirrorUrl of getMirrorSources(channel)) {
-        try {
-          console.log(`[Updater] Using ${channel} mirror for check: ${mirrorUrl}`);
-          autoUpdater.setFeedURL({
-            provider: "generic",
-            url: mirrorUrl,
-          });
-          const result = await autoUpdater.checkForUpdates();
-          console.log(`[Updater] Mirror check succeeded: ${mirrorUrl}`);
-          return { success: true, result };
-        } catch (mirrorError) {
-          console.warn(`[Updater] Mirror check failed: ${mirrorUrl}`);
-        }
+  ipcMain.handle(
+    "updater:check",
+    async (_event, request?: boolean | UpdateRequestOptions) => {
+      if (isDev) {
+        return {
+          success: false,
+          error: "Update check disabled in development mode",
+        };
       }
-      // All mirrors failed
-      return {
-        success: false,
-        error:
-          "All mirror sources failed. Please try disabling mirror acceleration.",
-      };
-    }
 
-    // Mirror disabled, use official source
-    // 未启用镜像，使用官方源
-    try {
-      console.log(`[Updater] Using official ${channel} source for check`);
-      autoUpdater.setFeedURL(getOfficialFeedConfig(channel));
-      const result = await autoUpdater.checkForUpdates();
-      return { success: true, result };
-    } catch (officialError) {
-      const errMsg = (officialError as Error).message || String(officialError);
-      return { success: false, error: `Update check failed: ${errMsg}` };
-    }
-  });
+      const { useMirror, channel } = normalizeUpdateOptions(request);
+      applyUpdateChannel(channel);
+      applyMirrorDownloadSettings(useMirror);
+
+      // If mirror is enabled, use mirror sources directly
+      // 如果启用了镜像，直接使用镜像源（不先尝试官方）
+      if (useMirror) {
+        for (const mirrorUrl of getMirrorSources(channel)) {
+          try {
+            console.log(
+              `[Updater] Using ${channel} mirror for check: ${mirrorUrl}`,
+            );
+            autoUpdater.setFeedURL({
+              provider: "generic",
+              url: mirrorUrl,
+            });
+            const result = await autoUpdater.checkForUpdates();
+            console.log(`[Updater] Mirror check succeeded: ${mirrorUrl}`);
+            return { success: true, result };
+          } catch (mirrorError) {
+            console.warn(`[Updater] Mirror check failed: ${mirrorUrl}`);
+          }
+        }
+        // All mirrors failed
+        return {
+          success: false,
+          error:
+            "All mirror sources failed. Please try disabling mirror acceleration.",
+        };
+      }
+
+      // Mirror disabled, use official source
+      // 未启用镜像，使用官方源
+      try {
+        console.log(`[Updater] Using official ${channel} source for check`);
+        autoUpdater.setFeedURL(getOfficialFeedConfig(channel));
+        const result = await autoUpdater.checkForUpdates();
+        return { success: true, result };
+      } catch (officialError) {
+        return {
+          success: false,
+          error: getUpdateErrorMessage(officialError, "check"),
+        };
+      }
+    },
+  );
 
   // Start downloading update
   // 开始下载更新 - respect user's mirror preference
-  ipcMain.handle("updater:download", async (_event, request?: boolean | UpdateRequestOptions) => {
-    if (isDev) {
-      return { success: false, error: "Download disabled in development mode" };
-    }
-
-    const { useMirror, channel } = normalizeUpdateOptions(request);
-    applyUpdateChannel(channel);
-    lastPercent = 0;
-
-    // macOS: bypass Squirrel, download DMG directly to ~/Downloads
-    // macOS: 绕过 Squirrel，直接下载 DMG 到 ~/Downloads
-    if (isMac) {
-      console.log("[Updater/macDMG] Using direct DMG download for macOS");
-      return await macDownloadDmg(useMirror, channel);
-    }
-
-    // Windows/Linux: use electron-updater's built-in download (Squirrel/NSIS)
-    // Windows/Linux: 使用 electron-updater 内置下载（Squirrel/NSIS）
-    applyMirrorDownloadSettings(useMirror);
-
-    // If mirror is enabled, use mirror sources directly
-    // 如果启用了镜像，直接使用镜像源
-    if (useMirror) {
-      for (const mirrorUrl of getMirrorSources(channel)) {
-        try {
-          console.log(`[Updater] Using ${channel} mirror for download: ${mirrorUrl}`);
-          autoUpdater.setFeedURL({
-            provider: "generic",
-            url: mirrorUrl,
-          });
-          await autoUpdater.downloadUpdate();
-          return { success: true };
-        } catch (mirrorError) {
-          console.warn(`[Updater] Mirror download failed: ${mirrorUrl}`);
-          lastPercent = 0; // Reset progress for next attempt
-        }
+  ipcMain.handle(
+    "updater:download",
+    async (_event, request?: boolean | UpdateRequestOptions) => {
+      if (isDev) {
+        return {
+          success: false,
+          error: "Download disabled in development mode",
+        };
       }
-      // All mirrors failed
-      return {
-        success: false,
-        error:
-          "All mirror sources failed. Please try disabling mirror acceleration.",
-      };
-    }
 
-    // Mirror disabled, use official source
-    // 未启用镜像，使用官方源
-    try {
-      console.log(`[Updater] Using official ${channel} source for download`);
-      autoUpdater.setFeedURL(getOfficialFeedConfig(channel));
-      await autoUpdater.downloadUpdate();
-      return { success: true };
-    } catch (officialError) {
-      const errMsg = (officialError as Error).message || String(officialError);
-      return { success: false, error: `Download update failed: ${errMsg}` };
-    }
-  });
+      const { useMirror, channel } = normalizeUpdateOptions(request);
+      applyUpdateChannel(channel);
+      lastPercent = 0;
+
+      // macOS: bypass Squirrel, download DMG directly to ~/Downloads
+      // macOS: 绕过 Squirrel，直接下载 DMG 到 ~/Downloads
+      if (isMac) {
+        console.log("[Updater/macDMG] Using direct DMG download for macOS");
+        return await macDownloadDmg(useMirror, channel);
+      }
+
+      // Windows/Linux: use electron-updater's built-in download (Squirrel/NSIS)
+      // Windows/Linux: 使用 electron-updater 内置下载（Squirrel/NSIS）
+      applyMirrorDownloadSettings(useMirror);
+
+      // If mirror is enabled, use mirror sources directly
+      // 如果启用了镜像，直接使用镜像源
+      if (useMirror) {
+        for (const mirrorUrl of getMirrorSources(channel)) {
+          try {
+            console.log(
+              `[Updater] Using ${channel} mirror for download: ${mirrorUrl}`,
+            );
+            autoUpdater.setFeedURL({
+              provider: "generic",
+              url: mirrorUrl,
+            });
+            await autoUpdater.downloadUpdate();
+            return { success: true };
+          } catch (mirrorError) {
+            console.warn(`[Updater] Mirror download failed: ${mirrorUrl}`);
+            lastPercent = 0; // Reset progress for next attempt
+          }
+        }
+        // All mirrors failed
+        return {
+          success: false,
+          error:
+            "All mirror sources failed. Please try disabling mirror acceleration.",
+        };
+      }
+
+      // Mirror disabled, use official source
+      // 未启用镜像，使用官方源
+      try {
+        console.log(`[Updater] Using official ${channel} source for download`);
+        autoUpdater.setFeedURL(getOfficialFeedConfig(channel));
+        await autoUpdater.downloadUpdate();
+        return { success: true };
+      } catch (officialError) {
+        return {
+          success: false,
+          error: getUpdateErrorMessage(officialError, "download"),
+        };
+      }
+    },
+  );
 
   // Install update and restart
   // 安装更新并重启
@@ -908,7 +952,7 @@ export function registerUpdaterIPC() {
   // Open GitHub Releases page
   // 打开 GitHub Releases 页面
   ipcMain.handle("updater:openReleases", () => {
-    shell.openExternal("https://github.com/tianzecn/PromptHub/releases");
+    shell.openExternal("https://github.com/tianzecn/SkillsHub/releases");
   });
 
   ipcMain.handle("updater:openDownloadedUpdate", () => {

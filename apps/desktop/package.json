@@ -27,7 +27,7 @@
   "license": "AGPL-3.0",
   "repository": {
     "type": "git",
-    "url": "https://github.com/tianzecn/PromptHub.git",
+    "url": "https://github.com/tianzecn/SkillsHub.git",
     "directory": "apps/desktop"
   },
   "scripts": {

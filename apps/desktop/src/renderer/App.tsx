@@ -681,7 +681,7 @@ function App() {
         //
         // The DataRecoveryDialog below is the only legitimate path to invoke
         // recovery — the user must explicitly confirm, so a loop is impossible.
-        // See: https://github.com/tianzecn/PromptHub v0.5.2 regression.
+        // See: https://github.com/tianzecn/SkillsHub v0.5.2 regression.
         if (!isWebRuntime()) {
           try {
             const recoverable = await window.electron?.checkRecovery?.();

@@ -89,7 +89,7 @@
   "publish": {
     "provider": "github",
     "owner": "tianzecn",
-    "repo": "PromptHub",
+    "repo": "SkillsHub",
     "releaseType": "release"
   },
   "releaseInfo": {

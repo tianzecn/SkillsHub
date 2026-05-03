@@ -58,15 +58,15 @@ title: 项目概览
 
 ## 开源协议
 
-PromptHub 采用 [AGPL-3.0](https://github.com/tianzecn/PromptHub/blob/main/LICENSE) 开源协议。
+PromptHub 采用 [AGPL-3.0](https://github.com/tianzecn/SkillsHub/blob/main/LICENSE) 开源协议。
 
 ## 参与贡献
 
 我们欢迎任何形式的贡献：
 
-- 🐛 [报告 Bug](https://github.com/tianzecn/PromptHub/issues/new?template=bug_report.md)
-- 💡 [提交功能建议](https://github.com/tianzecn/PromptHub/issues/new?template=feature_request.md)
-- 🔧 [提交 Pull Request](https://github.com/tianzecn/PromptHub/pulls)
+- 🐛 [报告 Bug](https://github.com/tianzecn/SkillsHub/issues/new?template=bug_report.md)
+- 💡 [提交功能建议](https://github.com/tianzecn/SkillsHub/issues/new?template=feature_request.md)
+- 🔧 [提交 Pull Request](https://github.com/tianzecn/SkillsHub/pulls)
 - 🌍 帮助翻译
 
 ## 下一步

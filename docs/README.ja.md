@@ -5,10 +5,10 @@
   <p>プロンプト管理 · スキルストア · マルチプラットフォームインストール · バージョン管理 · マルチモデルテスト — オールインワン AI ワークスペース</p>
   
   <p>
-    <a href="https://github.com/tianzecn/PromptHub/stargazers"><img src="https://img.shields.io/github/stars/tianzecn/PromptHub?style=flat-square&color=yellow" alt="GitHub Stars"/></a>
-    <a href="https://github.com/tianzecn/PromptHub/network/members"><img src="https://img.shields.io/github/forks/tianzecn/PromptHub?style=flat-square" alt="GitHub Forks"/></a>
-    <a href="https://github.com/tianzecn/PromptHub/releases"><img src="https://img.shields.io/badge/version-v0.5.6-green?style=flat-square" alt="Version"/></a>
-    <a href="https://github.com/tianzecn/PromptHub/releases"><img src="https://img.shields.io/github/downloads/tianzecn/PromptHub/total?style=flat-square&color=blue" alt="Downloads"/></a>
+    <a href="https://github.com/tianzecn/SkillsHub/stargazers"><img src="https://img.shields.io/github/stars/tianzecn/SkillsHub?style=flat-square&color=yellow" alt="GitHub Stars"/></a>
+    <a href="https://github.com/tianzecn/SkillsHub/network/members"><img src="https://img.shields.io/github/forks/tianzecn/SkillsHub?style=flat-square" alt="GitHub Forks"/></a>
+    <a href="https://github.com/tianzecn/SkillsHub/releases"><img src="https://img.shields.io/badge/version-v0.5.6-green?style=flat-square" alt="Version"/></a>
+    <a href="https://github.com/tianzecn/SkillsHub/releases"><img src="https://img.shields.io/github/downloads/tianzecn/SkillsHub/total?style=flat-square&color=blue" alt="Downloads"/></a>
     <img src="https://img.shields.io/badge/license-AGPL--3.0-blue?style=flat-square" alt="License: AGPL-3.0"/>
   </p>
   
@@ -41,16 +41,16 @@
 ## 📥 ダウンロード
 
 <div align="center">
-  <a href="https://github.com/tianzecn/PromptHub/releases">
+  <a href="https://github.com/tianzecn/SkillsHub/releases">
     <img src="https://img.shields.io/badge/📥_今すぐダウンロード-Releases-blue?style=for-the-badge" alt="Download"/>
   </a>
 </div>
 
 | プラットフォーム |                                                                                                                                                                                                              ダウンロード                                                                                                                                                                                                               |
 | :--------------: | :-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------: |
-|     Windows      | [![Windows x64](https://img.shields.io/badge/Windows_x64-0078D6?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/tianzecn/PromptHub/releases/latest/download/PromptHub-Setup-0.5.6-x64.exe) [![Windows arm64](https://img.shields.io/badge/Windows_arm64-0078D6?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/tianzecn/PromptHub/releases/latest/download/PromptHub-Setup-0.5.6-arm64.exe) |
-|      macOS       |   [![macOS Apple Silicon](https://img.shields.io/badge/macOS_Apple_Silicon-000000?style=for-the-badge&logo=apple&logoColor=white)](https://github.com/tianzecn/PromptHub/releases/latest/download/PromptHub-0.5.6-arm64.dmg) [![macOS Intel](https://img.shields.io/badge/macOS_Intel-000000?style=for-the-badge&logo=apple&logoColor=white)](https://github.com/tianzecn/PromptHub/releases/latest/download/PromptHub-0.5.6-x64.dmg)   |
-|      Linux       |       [![Linux AppImage](https://img.shields.io/badge/Linux_AppImage-FCC624?style=for-the-badge&logo=linux&logoColor=black)](https://github.com/tianzecn/PromptHub/releases/latest/download/PromptHub-0.5.6-x64.AppImage) [![Linux deb](https://img.shields.io/badge/Linux_deb-FCC624?style=for-the-badge&logo=linux&logoColor=black)](https://github.com/tianzecn/PromptHub/releases/latest/download/prompthub_0.5.6_amd64.deb)        |
+|     Windows      | [![Windows x64](https://img.shields.io/badge/Windows_x64-0078D6?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/tianzecn/SkillsHub/releases/latest/download/PromptHub-Setup-0.5.6-x64.exe) [![Windows arm64](https://img.shields.io/badge/Windows_arm64-0078D6?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/tianzecn/SkillsHub/releases/latest/download/PromptHub-Setup-0.5.6-arm64.exe) |
+|      macOS       |   [![macOS Apple Silicon](https://img.shields.io/badge/macOS_Apple_Silicon-000000?style=for-the-badge&logo=apple&logoColor=white)](https://github.com/tianzecn/SkillsHub/releases/latest/download/PromptHub-0.5.6-arm64.dmg) [![macOS Intel](https://img.shields.io/badge/macOS_Intel-000000?style=for-the-badge&logo=apple&logoColor=white)](https://github.com/tianzecn/SkillsHub/releases/latest/download/PromptHub-0.5.6-x64.dmg)   |
+|      Linux       |       [![Linux AppImage](https://img.shields.io/badge/Linux_AppImage-FCC624?style=for-the-badge&logo=linux&logoColor=black)](https://github.com/tianzecn/SkillsHub/releases/latest/download/PromptHub-0.5.6-x64.AppImage) [![Linux deb](https://img.shields.io/badge/Linux_deb-FCC624?style=for-the-badge&logo=linux&logoColor=black)](https://github.com/tianzecn/SkillsHub/releases/latest/download/prompthub_0.5.6_amd64.deb)        |
 
 ---
 
@@ -120,13 +120,13 @@
 
 ### ダウンロード
 
-[Releases](https://github.com/tianzecn/PromptHub/releases) からお使いのプラットフォーム用のインストーラーをダウンロードしてください：
+[Releases](https://github.com/tianzecn/SkillsHub/releases) からお使いのプラットフォーム用のインストーラーをダウンロードしてください：
 
 | プラットフォーム |                                                                                                                                                                                                              ダウンロード                                                                                                                                                                                                               |
 | :--------------: | :-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------: |
-|     Windows      | [![Windows x64](https://img.shields.io/badge/Windows_x64-0078D6?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/tianzecn/PromptHub/releases/latest/download/PromptHub-Setup-0.5.6-x64.exe) [![Windows arm64](https://img.shields.io/badge/Windows_arm64-0078D6?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/tianzecn/PromptHub/releases/latest/download/PromptHub-Setup-0.5.6-arm64.exe) |
-|      macOS       |   [![macOS Apple Silicon](https://img.shields.io/badge/macOS_Apple_Silicon-000000?style=for-the-badge&logo=apple&logoColor=white)](https://github.com/tianzecn/PromptHub/releases/latest/download/PromptHub-0.5.6-arm64.dmg) [![macOS Intel](https://img.shields.io/badge/macOS_Intel-000000?style=for-the-badge&logo=apple&logoColor=white)](https://github.com/tianzecn/PromptHub/releases/latest/download/PromptHub-0.5.6-x64.dmg)   |
-|      Linux       |       [![Linux AppImage](https://img.shields.io/badge/Linux_AppImage-FCC624?style=for-the-badge&logo=linux&logoColor=black)](https://github.com/tianzecn/PromptHub/releases/latest/download/PromptHub-0.5.6-x64.AppImage) [![Linux deb](https://img.shields.io/badge/Linux_deb-FCC624?style=for-the-badge&logo=linux&logoColor=black)](https://github.com/tianzecn/PromptHub/releases/latest/download/prompthub_0.5.6_amd64.deb)        |
+|     Windows      | [![Windows x64](https://img.shields.io/badge/Windows_x64-0078D6?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/tianzecn/SkillsHub/releases/latest/download/PromptHub-Setup-0.5.6-x64.exe) [![Windows arm64](https://img.shields.io/badge/Windows_arm64-0078D6?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/tianzecn/SkillsHub/releases/latest/download/PromptHub-Setup-0.5.6-arm64.exe) |
+|      macOS       |   [![macOS Apple Silicon](https://img.shields.io/badge/macOS_Apple_Silicon-000000?style=for-the-badge&logo=apple&logoColor=white)](https://github.com/tianzecn/SkillsHub/releases/latest/download/PromptHub-0.5.6-arm64.dmg) [![macOS Intel](https://img.shields.io/badge/macOS_Intel-000000?style=for-the-badge&logo=apple&logoColor=white)](https://github.com/tianzecn/SkillsHub/releases/latest/download/PromptHub-0.5.6-x64.dmg)   |
+|      Linux       |       [![Linux AppImage](https://img.shields.io/badge/Linux_AppImage-FCC624?style=for-the-badge&logo=linux&logoColor=black)](https://github.com/tianzecn/SkillsHub/releases/latest/download/PromptHub-0.5.6-x64.AppImage) [![Linux deb](https://img.shields.io/badge/Linux_deb-FCC624?style=for-the-badge&logo=linux&logoColor=black)](https://github.com/tianzecn/SkillsHub/releases/latest/download/prompthub_0.5.6_amd64.deb)        |
 
 ### macOS で Homebrew を使ってインストール
 
@@ -157,7 +157,7 @@ sudo xattr -rd com.apple.quarantine /Applications/PromptHub.app
 
 ```bash
 # リポジトリをクローン
-git clone https://github.com/tianzecn/PromptHub.git
+git clone https://github.com/tianzecn/SkillsHub.git
 cd PromptHub
 
 # 依存関係のインストール
@@ -291,11 +291,11 @@ PromptHub/
 
 ## 📈 Star History
 
-<a href="https://star-history.com/#tianzecn/PromptHub&Date">
+<a href="https://star-history.com/#tianzecn/SkillsHub&Date">
   <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=tianzecn/PromptHub&type=Date&theme=dark" />
-    <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=tianzecn/PromptHub&type=Date" />
-    <img alt="Star History Chart" src="https://api.star-history.com/svg?repos=tianzecn/PromptHub&type=Date" />
+    <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=tianzecn/SkillsHub&type=Date&theme=dark" />
+    <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=tianzecn/SkillsHub&type=Date" />
+    <img alt="Star History Chart" src="https://api.star-history.com/svg?repos=tianzecn/SkillsHub&type=Date" />
   </picture>
 </a>
 
@@ -371,8 +371,8 @@ PromptHub/
 
 ## 💬 サポート
 
-- **不具合報告**: [GitHub Issues](https://github.com/tianzecn/PromptHub/issues)
-- **機能提案**: [GitHub Discussions](https://github.com/tianzecn/PromptHub/discussions)
+- **不具合報告**: [GitHub Issues](https://github.com/tianzecn/SkillsHub/issues)
+- **機能提案**: [GitHub Discussions](https://github.com/tianzecn/SkillsHub/discussions)
 
 ## 🙏 謝辞
 
@@ -381,7 +381,7 @@ PromptHub/
 - [TailwindCSS](https://tailwindcss.com/)
 - [Zustand](https://zustand-demo.pmnd.rs/)
 - [Lucide](https://lucide.dev/)
-- PromptHub の改善に協力してくれたすべての素晴らしい [貢献者](https://github.com/tianzecn/PromptHub/graphs/contributors) の皆様に感謝します！
+- PromptHub の改善に協力してくれたすべての素晴らしい [貢献者](https://github.com/tianzecn/SkillsHub/graphs/contributors) の皆様に感謝します！
 
 ---
 

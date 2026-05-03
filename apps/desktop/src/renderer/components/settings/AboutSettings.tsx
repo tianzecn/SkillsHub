@@ -45,7 +45,7 @@ export function AboutSettings() {
     setUpdateState("checking");
     try {
       const res = await fetch(
-        "https://api.github.com/repos/tianzecn/PromptHub/releases/latest",
+        "https://api.github.com/repos/tianzecn/SkillsHub/releases/latest",
         { headers: { Accept: "application/vnd.github+json" } },
       );
       if (!res.ok) throw new Error("fetch failed");
@@ -75,7 +75,8 @@ export function AboutSettings() {
         </div>
         <h2 className="text-lg font-semibold">PromptHub</h2>
         <p className="text-sm text-muted-foreground mt-1">
-          {t("settings.version")} {webRuntime ? (webVersion || "...") : (appVersion || "...")}
+          {t("settings.version")}{" "}
+          {webRuntime ? webVersion || "..." : appVersion || "..."}
         </p>
       </div>
 
@@ -101,13 +102,15 @@ export function AboutSettings() {
               updateState === "latest"
                 ? t("settings.noUpdateDesc", { version: webVersion })
                 : updateState === "available"
-                  ? t("settings.updateAvailableDesc", { version: latestVersion })
+                  ? t("settings.updateAvailableDesc", {
+                      version: latestVersion,
+                    })
                   : t("settings.webUpdatesManagedDesc")
             }
           >
             {updateState === "available" ? (
               <a
-                href="https://github.com/tianzecn/PromptHub/releases/latest"
+                href="https://github.com/tianzecn/SkillsHub/releases/latest"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="h-8 px-4 rounded-lg bg-primary text-white text-sm hover:bg-primary/90 transition-colors inline-flex items-center gap-1.5"
@@ -195,7 +198,7 @@ export function AboutSettings() {
       <SettingSection title={t("settings.openSource")}>
         <SettingItem label="GitHub" description={t("settings.viewOnGithub")}>
           <a
-            href="https://github.com/tianzecn/PromptHub"
+            href="https://github.com/tianzecn/SkillsHub"
             target="_blank"
             rel="noopener noreferrer"
             className="text-primary text-sm hover:underline"
@@ -208,7 +211,7 @@ export function AboutSettings() {
           description={t("settings.reportIssueDesc")}
         >
           <a
-            href="https://github.com/tianzecn/PromptHub/issues/new"
+            href="https://github.com/tianzecn/SkillsHub/issues/new"
             target="_blank"
             rel="noopener noreferrer"
             className="h-8 px-4 rounded-lg bg-orange-500 text-white text-sm hover:bg-orange-600 transition-colors inline-flex items-center gap-1.5"

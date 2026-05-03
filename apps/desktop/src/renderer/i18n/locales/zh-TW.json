@@ -1099,6 +1099,8 @@
     "loadingCustomStore": "正在載入自訂商店內容...",
     "remoteStoreRetry": "重試",
     "remoteStoreRateLimitHint": "已達 GitHub API 請求限額，請幾分鐘後再試，或在設定中新增 GitHub Token。",
+    "remoteStoreNetworkHint": "無法連線到遠端 Skill 商店。請檢查網路、DNS、代理或 VPN 設定後再試。",
+    "remoteStoreConnectionHint": "遠端 Skill 商店暫時沒有回應。請檢查網路連線，或稍後再試。",
     "invalidGitRepo": "請輸入 GitHub 倉庫 URL，或改用本機目錄路徑",
     "skillsCount": "個技能",
     "adding": "新增中...",

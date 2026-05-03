@@ -35,7 +35,7 @@ export const Community = ({ dict }: CommunityProps) => {
 
             <div className="flex flex-wrap gap-4">
               <a
-                href="https://github.com/tianzecn/PromptHub"
+                href="https://github.com/tianzecn/SkillsHub"
                 target="_blank"
                 rel="noreferrer"
                 className="flex items-center gap-3 px-6 py-3 rounded-full bg-white text-black font-bold hover:bg-accent hover:scale-105 transition-all"
@@ -44,7 +44,7 @@ export const Community = ({ dict }: CommunityProps) => {
                 {dict.github}
               </a>
               <a
-                href="https://github.com/tianzecn/PromptHub/issues"
+                href="https://github.com/tianzecn/SkillsHub/issues"
                 target="_blank"
                 rel="noreferrer"
                 className="flex items-center gap-3 px-6 py-3 rounded-full bg-white/5 text-white border border-white/10 font-bold hover:bg-white/10 transition-all"
