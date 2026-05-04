@@ -1,7 +1,10 @@
 import { act, fireEvent, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { UpdateDialog, type UpdateStatus } from "../../../src/renderer/components/UpdateDialog";
+import {
+  UpdateDialog,
+  type UpdateStatus,
+} from "../../../src/renderer/components/UpdateDialog";
 import { renderWithI18n } from "../../helpers/i18n";
 import { installWindowMocks } from "../../helpers/window";
 
@@ -9,9 +12,13 @@ const useSettingsStoreMock = vi.fn();
 const downloadCompressedBackupMock = vi.fn();
 const getManualBackupStatusMock = vi.fn();
 const recordManualBackupMock = vi.fn();
+type SettingsStoreState = {
+  useUpdateMirror: boolean;
+  updateChannel: "stable" | "preview";
+};
 
 vi.mock("../../../src/renderer/stores/settings.store", () => ({
-  useSettingsStore: (selector: (state: { useUpdateMirror: boolean }) => boolean) =>
+  useSettingsStore: (selector: (state: SettingsStoreState) => unknown) =>
     selector(useSettingsStoreMock()),
 }));
 
@@ -42,7 +49,10 @@ describe("UpdateDialog", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    useSettingsStoreMock.mockReturnValue({ useUpdateMirror: false });
+    useSettingsStoreMock.mockReturnValue({
+      useUpdateMirror: false,
+      updateChannel: "stable",
+    });
     getManualBackupStatusMock.mockResolvedValue({
       lastManualBackupAt: null,
       lastManualBackupVersion: null,
@@ -69,10 +79,49 @@ describe("UpdateDialog", () => {
     });
   });
 
+  it("uses the check response status when the updater event is not delivered", async () => {
+    const checkMock = vi.fn().mockResolvedValue({
+      success: true,
+      status: {
+        status: "not-available",
+        info: { version: "0.5.1" },
+      },
+    });
+    installWindowMocks({
+      electron: {
+        updater: {
+          check: checkMock,
+          download: vi.fn().mockResolvedValue(undefined),
+          install: vi.fn().mockResolvedValue({ success: true }),
+          getVersion: vi.fn().mockResolvedValue("0.5.1"),
+          getPlatform: vi.fn().mockResolvedValue("win32"),
+          onStatus: vi.fn(() => vi.fn()),
+        },
+      },
+    });
+
+    await act(async () => {
+      await renderWithI18n(<UpdateDialog isOpen={true} onClose={vi.fn()} />, {
+        language: "en",
+      });
+    });
+
+    expect(await screen.findByText("Up to Date")).toBeInTheDocument();
+    expect(screen.queryByText("Checking...")).not.toBeInTheDocument();
+    expect(checkMock).toHaveBeenCalledWith({
+      useMirror: false,
+      channel: "stable",
+    });
+  });
+
   it("keeps download enabled because install creates an automatic data snapshot", async () => {
     await act(async () => {
       await renderWithI18n(
-        <UpdateDialog isOpen={true} onClose={vi.fn()} initialStatus={availableStatus} />,
+        <UpdateDialog
+          isOpen={true}
+          onClose={vi.fn()}
+          initialStatus={availableStatus}
+        />,
         { language: "en" },
       );
     });
@@ -120,7 +169,11 @@ describe("UpdateDialog", () => {
 
     await act(async () => {
       await renderWithI18n(
-        <UpdateDialog isOpen={true} onClose={vi.fn()} initialStatus={downloadedStatus} />,
+        <UpdateDialog
+          isOpen={true}
+          onClose={vi.fn()}
+          initialStatus={downloadedStatus}
+        />,
         { language: "en" },
       );
     });

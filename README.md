@@ -14,7 +14,7 @@
   [![GitHub Forks](https://img.shields.io/github/forks/tianzecn/SkillsHub?style=for-the-badge&logo=github)](https://github.com/tianzecn/SkillsHub/network/members)
   [![Downloads](https://img.shields.io/github/downloads/tianzecn/SkillsHub/total?style=for-the-badge&logo=github&color=blue)](https://github.com/tianzecn/SkillsHub/releases)
   
-  [![Version](https://img.shields.io/badge/version-v0.5.7-success?style=for-the-badge)](https://github.com/tianzecn/SkillsHub/releases)
+  [![Version](https://img.shields.io/badge/version-v0.5.8-success?style=for-the-badge)](https://github.com/tianzecn/SkillsHub/releases)
   [![License](https://img.shields.io/badge/license-AGPL--3.0-blue?style=for-the-badge)](./LICENSE)
   [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen?style=for-the-badge)](https://github.com/tianzecn/SkillsHub/pulls)
   
@@ -295,13 +295,13 @@ apps/web/data
 
 ### 下载
 
-从 [Releases](https://github.com/tianzecn/SkillsHub/releases) 下载最新版本 v0.5.7：
+从 [Releases](https://github.com/tianzecn/SkillsHub/releases) 下载最新版本 v0.5.8：
 
 | 平台    | 下载                                                                                                                                                                                                                                                                                                                                                                                                                                    |
 | ------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Windows | [![Windows x64](https://img.shields.io/badge/Windows_x64-0078D6?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/tianzecn/SkillsHub/releases/latest/download/PromptHub-Setup-0.5.7-x64.exe) [![Windows arm64](https://img.shields.io/badge/Windows_arm64-0078D6?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/tianzecn/SkillsHub/releases/latest/download/PromptHub-Setup-0.5.7-arm64.exe) |
-| macOS   | [![macOS Apple Silicon](https://img.shields.io/badge/macOS_Apple_Silicon-000000?style=for-the-badge&logo=apple&logoColor=white)](https://github.com/tianzecn/SkillsHub/releases/latest/download/PromptHub-0.5.7-arm64.dmg) [![macOS Intel](https://img.shields.io/badge/macOS_Intel-000000?style=for-the-badge&logo=apple&logoColor=white)](https://github.com/tianzecn/SkillsHub/releases/latest/download/PromptHub-0.5.7-x64.dmg)     |
-| Linux   | [![Linux AppImage](https://img.shields.io/badge/Linux_AppImage-FCC624?style=for-the-badge&logo=linux&logoColor=black)](https://github.com/tianzecn/SkillsHub/releases/latest/download/PromptHub-0.5.7-x64.AppImage) [![Linux deb](https://img.shields.io/badge/Linux_deb-FCC624?style=for-the-badge&logo=linux&logoColor=black)](https://github.com/tianzecn/SkillsHub/releases/latest/download/PromptHub-0.5.7-amd64.deb)              |
+| Windows | [![Windows x64](https://img.shields.io/badge/Windows_x64-0078D6?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/tianzecn/SkillsHub/releases/latest/download/PromptHub-Setup-0.5.8-x64.exe) [![Windows arm64](https://img.shields.io/badge/Windows_arm64-0078D6?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/tianzecn/SkillsHub/releases/latest/download/PromptHub-Setup-0.5.8-arm64.exe) |
+| macOS   | [![macOS Apple Silicon](https://img.shields.io/badge/macOS_Apple_Silicon-000000?style=for-the-badge&logo=apple&logoColor=white)](https://github.com/tianzecn/SkillsHub/releases/latest/download/PromptHub-0.5.8-arm64.dmg) [![macOS Intel](https://img.shields.io/badge/macOS_Intel-000000?style=for-the-badge&logo=apple&logoColor=white)](https://github.com/tianzecn/SkillsHub/releases/latest/download/PromptHub-0.5.8-x64.dmg)     |
+| Linux   | [![Linux AppImage](https://img.shields.io/badge/Linux_AppImage-FCC624?style=for-the-badge&logo=linux&logoColor=black)](https://github.com/tianzecn/SkillsHub/releases/latest/download/PromptHub-0.5.8-x64.AppImage) [![Linux deb](https://img.shields.io/badge/Linux_deb-FCC624?style=for-the-badge&logo=linux&logoColor=black)](https://github.com/tianzecn/SkillsHub/releases/latest/download/PromptHub-0.5.8-amd64.deb)              |
 
 > 💡 **架构选择建议**
 >
@@ -560,7 +560,7 @@ PromptHub/
 
 ## 路线图
 
-### v0.5.7 (当前) 🚀
+### v0.5.8 (当前) 🚀
 
 - [x] **Skill 商店更新检测**：商店下载的 Skill 记录安装内容哈希，可检测远端 `SKILL.md` 是否更新
 - [x] **稳定 / 预览更新通道**：默认只更新稳定版，加入预览版本后才会接收 GitHub prerelease 测试版
@@ -626,17 +626,12 @@ PromptHub/
 
 查看完整的更新日志：**[CHANGELOG.md](./CHANGELOG.md)**
 
-### 最新版本 v0.5.7 (2026-05-04)
+### 最新版本 v0.5.8 (2026-05-04)
 
-**社区 Skill 商店 / Community Skill Store**
+**自动更新 / Auto Update**
 
-- 🧩 **SkillsHub 远程商店接入**：桌面端 Skill 商店新增 API-backed 的 skills.sh / SkillsHub 社区源，支持 Trending、搜索、官方精选和详情页文件读取
-- 🔑 **社区源 API Key 设置**：Skill 设置页新增可选的 masked skills.sh API Key；未配置时仍可匿名使用，并显示降级 / 限流状态
-
-**安全与发布 / Safety & Release**
-
-- 🛡️ **社区 Skill 安装安全边界**：新增 main-process skills.sh 服务与 typed IPC，远程请求限制在白名单端点，并保留安装前安全扫描与重复项过滤
-- 📦 **下载链接与发布元数据修正**：Linux deb 下载地址改为 CI 实际产物 `PromptHub-0.5.7-amd64.deb`，确保 Release 资产和官网按钮一致
+- 🔄 **更新检查卡住修复**：检查更新返回结果但事件未送达时，弹窗会用 IPC 返回值兜底显示“有可用更新”或“已是最新版本”
+- ⏱️ **更新源超时兜底**：网络、代理或更新源长时间无响应时，30 秒后进入明确错误状态，不再一直停留在“检查中”
 
 > [查看完整更新日志](./CHANGELOG.md)
 

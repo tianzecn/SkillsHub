@@ -48,6 +48,17 @@ vi.mock("electron-updater", () => {
 
 import { initUpdater, registerUpdaterIPC } from "../../../src/main/updater";
 
+type CheckHandlerResult = {
+  success: boolean;
+  status?: {
+    status: string;
+    info?: {
+      version: string;
+    };
+  };
+  error?: string;
+};
+
 describe("Updater Service (Main Process)", () => {
   let mockWindow: any;
   const originalPlatform = process.platform;
@@ -65,6 +76,9 @@ describe("Updater Service (Main Process)", () => {
     autoUpdater.channel = "latest";
     // @ts-ignore
     autoUpdater.allowPrerelease = false;
+    vi.mocked(autoUpdater.checkForUpdates).mockResolvedValue({
+      updateInfo: { version: "1.0.0" },
+    });
 
     mockWindow = {
       webContents: {
@@ -75,6 +89,7 @@ describe("Updater Service (Main Process)", () => {
   });
 
   afterEach(() => {
+    vi.useRealTimers();
     Object.defineProperty(process, "platform", { value: originalPlatform });
     Object.defineProperty(process, "arch", { value: originalArch });
   });
@@ -205,6 +220,55 @@ describe("Updater Service (Main Process)", () => {
     expect(result.success).toBe(false);
     expect(result.error).toContain("release source is not publicly accessible");
     expect(result.error).toContain("private or inaccessible repositories");
+  });
+
+  it("returns a final not-available status when check result arrives without updater event", async () => {
+    vi.mocked(autoUpdater.checkForUpdates).mockResolvedValueOnce({
+      updateInfo: { version: "1.0.0", releaseDate: "2026-05-04T00:00:00.000Z" },
+    });
+    registerUpdaterIPC();
+    const checkHandler = vi
+      .mocked((await import("electron")).ipcMain.handle)
+      .mock.calls.find(([channel]) => channel === "updater:check")?.[1] as (
+      _event: unknown,
+      options?: unknown,
+    ) => Promise<CheckHandlerResult>;
+
+    const result = await checkHandler(
+      {},
+      { useMirror: false, channel: "stable" },
+    );
+
+    expect(result.success).toBe(true);
+    expect(result.status).toMatchObject({
+      status: "not-available",
+      info: { version: "1.0.0" },
+    });
+  });
+
+  it("returns a timeout error when update check never settles", async () => {
+    vi.useFakeTimers();
+    vi.mocked(autoUpdater.checkForUpdates).mockReturnValueOnce(
+      new Promise(() => {}),
+    );
+    registerUpdaterIPC();
+    const checkHandler = vi
+      .mocked((await import("electron")).ipcMain.handle)
+      .mock.calls.find(([channel]) => channel === "updater:check")?.[1] as (
+      _event: unknown,
+      options?: unknown,
+    ) => Promise<CheckHandlerResult>;
+
+    const pendingResult = checkHandler(
+      {},
+      { useMirror: false, channel: "stable" },
+    );
+
+    await vi.advanceTimersByTimeAsync(30_000);
+    const result = await pendingResult;
+
+    expect(result.success).toBe(false);
+    expect(result.error).toContain("Update check timed out");
   });
 
   it("uses the preview prerelease feed only after joining preview channel", async () => {

@@ -1,5 +1,14 @@
 ## [Unreleased]
 
+## [0.5.8] - 2026-05-04
+
+### 修复 / Fixed
+
+- 🔄 **更新检查卡住修复**：桌面端检查更新不再只依赖 `electron-updater` 事件回调；当 IPC 已返回结果但事件未送达时，会使用返回值兜底显示“有可用更新”或“已是最新版本”
+  - **Update Check Stuck State Fix**: Desktop update checks no longer rely solely on `electron-updater` event callbacks. When IPC returns a result but the event is missed, the dialog falls back to the returned status and shows either “update available” or “up to date”
+- ⏱️ **更新源超时兜底**：更新检查增加 30 秒超时，网络、代理或更新源长时间无响应时会进入可见错误状态，不再一直停留在“检查中”
+  - **Update Source Timeout Fallback**: Update checks now time out after 30 seconds, turning slow network/proxy/source failures into a visible error state instead of leaving the dialog stuck on “checking”
+
 ## [0.5.7] - 2026-05-04
 
 ### 新增 / Added

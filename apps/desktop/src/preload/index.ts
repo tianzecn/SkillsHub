@@ -175,10 +175,16 @@ contextBridge.exposeInMainWorld("electron", {
   // Updater
   // 更新器
   updater: {
-    check: (options?: boolean | { useMirror?: boolean; channel?: "stable" | "preview" }) =>
-      ipcRenderer.invoke("updater:check", options),
-    download: (options?: boolean | { useMirror?: boolean; channel?: "stable" | "preview" }) =>
-      ipcRenderer.invoke("updater:download", options),
+    check: (
+      options?:
+        | boolean
+        | { useMirror?: boolean; channel?: "stable" | "preview" },
+    ) => ipcRenderer.invoke("updater:check", options),
+    download: (
+      options?:
+        | boolean
+        | { useMirror?: boolean; channel?: "stable" | "preview" },
+    ) => ipcRenderer.invoke("updater:download", options),
     install: () => ipcRenderer.invoke("updater:install"),
     openDownloadedUpdate: () =>
       ipcRenderer.invoke("updater:openDownloadedUpdate"),
@@ -318,6 +324,27 @@ contextBridge.exposeInMainWorld("electron", {
 // 类型声明
 export type API = typeof api;
 
+interface PreloadUpdateInfo {
+  version: string;
+  releaseNotes?: string;
+  releaseDate?: string;
+}
+
+interface PreloadProgressInfo {
+  percent: number;
+  bytesPerSecond: number;
+  total: number;
+  transferred: number;
+}
+
+type PreloadUpdateStatus =
+  | { status: "checking" }
+  | { status: "available"; info: PreloadUpdateInfo }
+  | { status: "not-available"; info: PreloadUpdateInfo }
+  | { status: "downloading"; progress: PreloadProgressInfo }
+  | { status: "downloaded"; info: PreloadUpdateInfo }
+  | { status: "error"; error: string };
+
 declare global {
   interface Window {
     api: API;
@@ -365,9 +392,9 @@ declare global {
         error?: string;
       }>;
       // Data recovery
-      checkRecovery?: (options?: RecoveryScanOptions) => Promise<
-        RecoveryCandidate[]
-      >;
+      checkRecovery?: (
+        options?: RecoveryScanOptions,
+      ) => Promise<RecoveryCandidate[]>;
       previewRecovery?: (sourcePath: string) => Promise<RecoveryPreviewResult>;
       performRecovery?: (sourcePath: string) => Promise<{
         success: boolean;
@@ -389,20 +416,26 @@ declare global {
       }) => Promise<{ canceled: boolean; filePath?: string; error?: string }>;
       updater?: {
         check: (
-          options?: boolean | { useMirror?: boolean; channel?: "stable" | "preview" },
-        ) => Promise<{ success: boolean; result?: any; error?: string }>;
+          options?:
+            | boolean
+            | { useMirror?: boolean; channel?: "stable" | "preview" },
+        ) => Promise<{
+          success: boolean;
+          result?: unknown;
+          status?: PreloadUpdateStatus;
+          error?: string;
+        }>;
         download: (
-          options?: boolean | { useMirror?: boolean; channel?: "stable" | "preview" },
+          options?:
+            | boolean
+            | { useMirror?: boolean; channel?: "stable" | "preview" },
         ) => Promise<{ success: boolean; error?: string }>;
-        install: () => Promise<
-          | {
-              success: boolean;
-              manual?: boolean;
-              backupPath?: string;
-              error?: string;
-            }
-          | void
-        >;
+        install: () => Promise<{
+          success: boolean;
+          manual?: boolean;
+          backupPath?: string;
+          error?: string;
+        } | void>;
         openDownloadedUpdate: () => Promise<{
           success: boolean;
           path?: string;
@@ -410,7 +443,9 @@ declare global {
         getVersion: () => Promise<string>;
         getPlatform: () => Promise<string>;
         openReleases: () => Promise<void>;
-        onStatus: (callback: (status: any) => void) => void | (() => void);
+        onStatus: (
+          callback: (status: PreloadUpdateStatus) => void,
+        ) => void | (() => void);
         offStatus: () => void;
       };
       selectImage?: () => Promise<string[]>;

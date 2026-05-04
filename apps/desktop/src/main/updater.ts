@@ -15,6 +15,17 @@ interface SimpleUpdateInfo {
   releaseDate?: string;
 }
 
+interface UpdateFileForDownload {
+  url: string;
+}
+
+interface UpdateInfoForStatus {
+  version: string;
+  releaseNotes?: ElectronUpdateInfo["releaseNotes"];
+  releaseDate?: string;
+  files?: UpdateFileForDownload[];
+}
+
 interface ProgressInfo {
   percent: number;
   bytesPerSecond: number;
@@ -28,6 +39,8 @@ interface UpdateRequestOptions {
   useMirror?: boolean;
   channel?: UpdateChannel;
 }
+
+const UPDATE_CHECK_TIMEOUT_MS = 30_000;
 
 const OFFICIAL_REPO = {
   provider: "github" as const,
@@ -103,9 +116,20 @@ function getUpdateErrorMessage(
   action: "check" | "download",
 ): string {
   const rawMessage = error instanceof Error ? error.message : String(error);
+  const normalizedMessage = rawMessage.toLowerCase();
+  const isTimedOut = normalizedMessage.includes("timed out");
   const isGitHubAccess404 =
     rawMessage.includes("github.com/tianzecn/SkillsHub") &&
     rawMessage.includes("404");
+
+  if (isTimedOut) {
+    return [
+      action === "check"
+        ? "Update check timed out."
+        : "Update download timed out.",
+      "更新源响应超时，请检查网络、代理或稍后重试。",
+    ].join("\n");
+  }
 
   if (isGitHubAccess404) {
     return [
@@ -245,7 +269,7 @@ export function getChangelogForVersionRange(
 
 // Convert from electron-updater's UpdateInfo to simplified format
 // 从 electron-updater 的 UpdateInfo 转换为简化格式
-function toSimpleInfo(info: ElectronUpdateInfo): SimpleUpdateInfo {
+function toSimpleInfo(info: UpdateInfoForStatus): SimpleUpdateInfo {
   const currentVersion = app.getVersion();
 
   // Prefer reading version range changelog from CHANGELOG.md
@@ -352,7 +376,7 @@ const isMac = process.platform === "darwin";
 
 // macOS: track last detected update info for DMG download
 // macOS: 记录最近一次检测到的更新信息，用于 DMG 下载
-let lastUpdateInfo: ElectronUpdateInfo | null = null;
+let lastUpdateInfo: UpdateInfoForStatus | null = null;
 // macOS: path to the downloaded DMG file
 // macOS: 已下载的 DMG 文件路径
 let macDownloadedDmgPath: string | null = null;
@@ -368,6 +392,103 @@ export interface UpdateStatus {
   info?: SimpleUpdateInfo;
   progress?: ProgressInfo;
   error?: string;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
+function getUpdateInfoFromCheckResult(
+  result: unknown,
+): UpdateInfoForStatus | null {
+  if (!isRecord(result)) {
+    return null;
+  }
+
+  const updateInfo = result.updateInfo;
+  if (!isRecord(updateInfo) || typeof updateInfo.version !== "string") {
+    return null;
+  }
+
+  const info: UpdateInfoForStatus = {
+    version: updateInfo.version,
+  };
+
+  if (typeof updateInfo.releaseNotes === "string") {
+    info.releaseNotes = updateInfo.releaseNotes;
+  }
+  if (typeof updateInfo.releaseDate === "string") {
+    info.releaseDate = updateInfo.releaseDate;
+  }
+  if (Array.isArray(updateInfo.files)) {
+    const files = updateInfo.files.filter(
+      (file): file is UpdateFileForDownload =>
+        isRecord(file) && typeof file.url === "string",
+    );
+    if (files.length > 0) {
+      info.files = files;
+    }
+  }
+
+  return info;
+}
+
+function createStatusFromCheckResult(result: unknown): UpdateStatus | null {
+  const updateInfo = getUpdateInfoFromCheckResult(result);
+  if (!updateInfo) {
+    return null;
+  }
+
+  if (compareVersions(updateInfo.version, app.getVersion()) > 0) {
+    if (isMac) {
+      lastUpdateInfo = updateInfo;
+    }
+    return {
+      status: "available",
+      info: toSimpleInfo(updateInfo),
+    };
+  }
+
+  return {
+    status: "not-available",
+    info: toSimpleInfo(updateInfo),
+  };
+}
+
+function withUpdateCheckTimeout<T>(promise: Promise<T>): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timeout = setTimeout(() => {
+      reject(
+        new Error(
+          `Update check timed out after ${UPDATE_CHECK_TIMEOUT_MS / 1000}s`,
+        ),
+      );
+    }, UPDATE_CHECK_TIMEOUT_MS);
+
+    promise.then(
+      (value) => {
+        clearTimeout(timeout);
+        resolve(value);
+      },
+      (error: unknown) => {
+        clearTimeout(timeout);
+        reject(error);
+      },
+    );
+  });
+}
+
+async function checkForUpdatesWithFallbackStatus(): Promise<{
+  result: unknown;
+  status?: UpdateStatus;
+}> {
+  const result = await withUpdateCheckTimeout(autoUpdater.checkForUpdates());
+  const status = createStatusFromCheckResult(result);
+  if (status) {
+    sendStatusToWindow(status);
+    return { result, status };
+  }
+  return { result };
 }
 
 export function initUpdater(win: BrowserWindow) {
@@ -521,7 +642,7 @@ function sendStatusToWindow(status: UpdateStatus) {
  * 从更新信息中找到当前架构对应的 DMG 下载链接。
  */
 function findMacDmgUrl(
-  info: ElectronUpdateInfo,
+  info: UpdateInfoForStatus,
   feedUrl: string,
 ): string | null {
   const arch = process.arch; // 'x64' or 'arm64'
@@ -791,9 +912,10 @@ export function registerUpdaterIPC() {
               provider: "generic",
               url: mirrorUrl,
             });
-            const result = await autoUpdater.checkForUpdates();
+            const { result, status } =
+              await checkForUpdatesWithFallbackStatus();
             console.log(`[Updater] Mirror check succeeded: ${mirrorUrl}`);
-            return { success: true, result };
+            return { success: true, result, status };
           } catch (mirrorError) {
             console.warn(`[Updater] Mirror check failed: ${mirrorUrl}`);
           }
@@ -811,8 +933,8 @@ export function registerUpdaterIPC() {
       try {
         console.log(`[Updater] Using official ${channel} source for check`);
         autoUpdater.setFeedURL(getOfficialFeedConfig(channel));
-        const result = await autoUpdater.checkForUpdates();
-        return { success: true, result };
+        const { result, status } = await checkForUpdatesWithFallbackStatus();
+        return { success: true, result, status };
       } catch (officialError) {
         return {
           success: false,

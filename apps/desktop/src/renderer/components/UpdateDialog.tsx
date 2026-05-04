@@ -1,10 +1,19 @@
-import { useState, useEffect } from 'react';
-import { useTranslation } from 'react-i18next';
-import { DownloadIcon, CheckCircleIcon, XIcon, Loader2Icon, RefreshCwIcon, FolderOpenIcon, ExternalLinkIcon, ZapIcon } from 'lucide-react';
-import ReactMarkdown from 'react-markdown';
-import remarkGfm from 'remark-gfm';
-import rehypeSanitize from 'rehype-sanitize';
-import { useSettingsStore } from '../stores/settings.store';
+import { useState, useEffect } from "react";
+import { useTranslation } from "react-i18next";
+import {
+  DownloadIcon,
+  CheckCircleIcon,
+  XIcon,
+  Loader2Icon,
+  RefreshCwIcon,
+  FolderOpenIcon,
+  ExternalLinkIcon,
+  ZapIcon,
+} from "lucide-react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
+import rehypeSanitize from "rehype-sanitize";
+import { useSettingsStore } from "../stores/settings.store";
 import { downloadCompressedBackup } from "../services/database-backup";
 import {
   getManualBackupStatus,
@@ -25,17 +34,23 @@ export interface ProgressInfo {
 }
 
 export type UpdateStatus =
-  | { status: 'checking' }
-  | { status: 'available'; info: UpdateInfo }
-  | { status: 'not-available'; info: UpdateInfo }
-  | { status: 'downloading'; progress: ProgressInfo }
-  | { status: 'downloaded'; info: UpdateInfo }
-  | { status: 'error'; error: string };
+  | { status: "checking" }
+  | { status: "available"; info: UpdateInfo }
+  | { status: "not-available"; info: UpdateInfo }
+  | { status: "downloading"; progress: ProgressInfo }
+  | { status: "downloaded"; info: UpdateInfo }
+  | { status: "error"; error: string };
+
+interface UpdateCheckResponse {
+  success: boolean;
+  status?: UpdateStatus;
+  error?: string;
+}
 
 function isStableUpgradeState(
   status: UpdateStatus | null,
-): status is Extract<UpdateStatus, { status: 'available' | 'downloaded' }> {
-  return status?.status === 'available' || status?.status === 'downloaded';
+): status is Extract<UpdateStatus, { status: "available" | "downloaded" }> {
+  return status?.status === "available" || status?.status === "downloaded";
 }
 
 interface UpdateDialogProps {
@@ -44,18 +59,28 @@ interface UpdateDialogProps {
   initialStatus?: UpdateStatus | null;
 }
 
-export function UpdateDialog({ isOpen, onClose, initialStatus }: UpdateDialogProps) {
+export function UpdateDialog({
+  isOpen,
+  onClose,
+  initialStatus,
+}: UpdateDialogProps) {
   const { t } = useTranslation();
   // Only subscribe to the field we need, not the entire store
   // 只订阅需要的字段，而不是整个 store
   const useUpdateMirror = useSettingsStore((state) => state.useUpdateMirror);
   const updateChannel = useSettingsStore((state) => state.updateChannel);
-  const [updateStatus, setUpdateStatus] = useState<UpdateStatus | null>(initialStatus || null);
+  const [updateStatus, setUpdateStatus] = useState<UpdateStatus | null>(
+    initialStatus || null,
+  );
   const [useMirror, setUseMirror] = useState<boolean>(useUpdateMirror);
-  const [currentVersion, setCurrentVersion] = useState<string>('');
-  const [platform, setPlatform] = useState<string>('');
-  const [lastManualBackupAt, setLastManualBackupAt] = useState<string | null>(null);
-  const [lastManualBackupVersion, setLastManualBackupVersion] = useState<string | null>(null);
+  const [currentVersion, setCurrentVersion] = useState<string>("");
+  const [platform, setPlatform] = useState<string>("");
+  const [lastManualBackupAt, setLastManualBackupAt] = useState<string | null>(
+    null,
+  );
+  const [lastManualBackupVersion, setLastManualBackupVersion] = useState<
+    string | null
+  >(null);
   const [isCreatingBackup, setIsCreatingBackup] = useState(false);
   const [isInstalling, setIsInstalling] = useState(false);
   const [hasAcknowledgedBackup, setHasAcknowledgedBackup] = useState(false);
@@ -87,35 +112,52 @@ export function UpdateDialog({ isOpen, onClose, initialStatus }: UpdateDialogPro
     // --- DEV MODE: Simulate update status for testing UI ---
     // 开发模式：模拟更新状态以测试 UI
     const devTimers: Array<ReturnType<typeof setTimeout>> = [];
-    if (process.env.NODE_ENV === 'development') {
+    if (process.env.NODE_ENV === "development") {
       // Uncomment one of the following to test different states
       // 取消注释以下任一项来测试不同状态
 
-      devTimers.push(setTimeout(() => {
-        setUpdateStatus({
-          status: 'available',
-          info: {
-            version: '0.2.6-beta',
-            releaseNotes: `## 🚀 新功能 / New Features\n- 模拟开发环境下的更新提示\n- Simulated update prompt in dev mode\n\n## ✨ 优化 / Improvements\n- 更好的更新体验\n- Better update experience\n\n## 🐛 修复 / Bug Fixes\n- 修复了一些已知问题\n- Fixed some known issues`,
-            releaseDate: new Date().toISOString(),
-          },
-        });
-      }, 1500));
+      devTimers.push(
+        setTimeout(() => {
+          setUpdateStatus({
+            status: "available",
+            info: {
+              version: "0.2.6-beta",
+              releaseNotes: `## 🚀 新功能 / New Features\n- 模拟开发环境下的更新提示\n- Simulated update prompt in dev mode\n\n## ✨ 优化 / Improvements\n- 更好的更新体验\n- Better update experience\n\n## 🐛 修复 / Bug Fixes\n- 修复了一些已知问题\n- Fixed some known issues`,
+              releaseDate: new Date().toISOString(),
+            },
+          });
+        }, 1500),
+      );
 
-      devTimers.push(setTimeout(() => {
-        setUpdateStatus({ status: 'not-available', info: { version: '0.2.5' } });
-      }, 1500));
+      devTimers.push(
+        setTimeout(() => {
+          setUpdateStatus({
+            status: "not-available",
+            info: { version: "0.2.5" },
+          });
+        }, 1500),
+      );
 
-      devTimers.push(setTimeout(() => {
-        setUpdateStatus({ status: 'downloading', progress: { percent: 45, bytesPerSecond: 1024000, total: 50000000, transferred: 22500000 } });
-      }, 1500));
+      devTimers.push(
+        setTimeout(() => {
+          setUpdateStatus({
+            status: "downloading",
+            progress: {
+              percent: 45,
+              bytesPerSecond: 1024000,
+              total: 50000000,
+              transferred: 22500000,
+            },
+          });
+        }, 1500),
+      );
     }
     // --- END DEV MODE ---
 
     return () => {
       // Precise cleanup: remove only this dialog's listener, avoid affecting App-level listeners
       // 精确清理：只移除本弹窗的监听，避免影响 App 层监听
-      if (typeof offUpdaterStatus === 'function') {
+      if (typeof offUpdaterStatus === "function") {
         offUpdaterStatus();
       } else {
         window.electron?.updater?.offStatus?.();
@@ -147,19 +189,41 @@ export function UpdateDialog({ isOpen, onClose, initialStatus }: UpdateDialogPro
   ) => {
     setUseMirror(mirror);
     if (!options?.preserveVisibleStatus) {
-      setUpdateStatus({ status: 'checking' });
+      setUpdateStatus({ status: "checking" });
     }
-    const result = await window.electron?.updater?.check({
-      useMirror: mirror,
-      channel: updateChannel,
-    });
-    // If update check returns an error (e.g. in dev), set error status
-    // 如果检查更新返回错误（例如开发环境），设置错误状态
-    if (result && !result.success) {
-      setUpdateStatus({ status: 'error', error: result.error || '检查更新失败' });
+    try {
+      const result: UpdateCheckResponse | undefined =
+        await window.electron?.updater?.check({
+          useMirror: mirror,
+          channel: updateChannel,
+        });
+      // If update check returns an error (e.g. in dev), set error status
+      // 如果检查更新返回错误（例如开发环境），设置错误状态
+      if (!result || !result.success) {
+        setUpdateStatus({
+          status: "error",
+          error: result?.error || t("skill.updateCheckFailed"),
+        });
+        return;
+      }
+
+      // Prefer updater events, but use IPC result as a fallback when the event is missed.
+      // 优先使用 updater 事件；若事件没有送达，则使用 IPC 结果兜底。
+      if (result.status) {
+        setUpdateStatus(result.status);
+      } else if (currentVersion) {
+        setUpdateStatus({
+          status: "not-available",
+          info: { version: currentVersion },
+        });
+      }
+    } catch (error) {
+      setUpdateStatus({
+        status: "error",
+        error:
+          error instanceof Error ? error.message : t("skill.updateCheckFailed"),
+      });
     }
-    // Note: success cases are handled via onStatus callback
-    // 注意：成功的情况会通过 onStatus 回调处理
   };
 
   const handleDownload = async () => {
@@ -178,8 +242,8 @@ export function UpdateDialog({ isOpen, onClose, initialStatus }: UpdateDialogPro
       const result = await window.electron?.updater?.install();
       if (result && !result.success) {
         setUpdateStatus({
-          status: 'error',
-          error: result.error || 'Automatic upgrade backup failed',
+          status: "error",
+          error: result.error || "Automatic upgrade backup failed",
         });
       }
     } finally {
@@ -218,18 +282,22 @@ export function UpdateDialog({ isOpen, onClose, initialStatus }: UpdateDialogPro
         <ZapIcon className="mt-0.5 h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400" />
         <div className="flex-1">
           <p className="text-sm font-medium text-foreground">
-            {t('settings.backupRequiredForUpgrade')}
+            {t("settings.backupRequiredForUpgrade")}
           </p>
           <p className="mt-1 text-xs text-muted-foreground whitespace-pre-line">
-            {t('settings.backupRequiredForUpgradeDesc')}
+            {t("settings.backupRequiredForUpgradeDesc")}
           </p>
           {hasCurrentVersionManualBackup && lastManualBackupAt ? (
             <p className="mt-2 text-xs text-green-600 dark:text-green-400">
-              {t('settings.backupReadyForUpgrade', { time: lastManualBackupAt })}
+              {t("settings.backupReadyForUpgrade", {
+                time: lastManualBackupAt,
+              })}
             </p>
           ) : (
             <p className="mt-2 text-xs text-amber-700 dark:text-amber-300">
-              {t('settings.backupMissingForUpgrade', { version: currentVersion })}
+              {t("settings.backupMissingForUpgrade", {
+                version: currentVersion,
+              })}
             </p>
           )}
         </div>
@@ -245,7 +313,7 @@ export function UpdateDialog({ isOpen, onClose, initialStatus }: UpdateDialogPro
           ) : (
             <DownloadIcon className="h-4 w-4" />
           )}
-          {t('settings.backupBeforeUpgrade')}
+          {t("settings.backupBeforeUpgrade")}
         </button>
       </div>
       <label className="mt-3 flex items-start gap-2 text-xs text-foreground">
@@ -255,11 +323,11 @@ export function UpdateDialog({ isOpen, onClose, initialStatus }: UpdateDialogPro
           onChange={(event) => setHasAcknowledgedBackup(event.target.checked)}
           className="mt-0.5 h-4 w-4 rounded border-border text-primary focus:ring-primary"
         />
-        <span>{t('settings.backupConfirmUpgrade')}</span>
+        <span>{t("settings.backupConfirmUpgrade")}</span>
       </label>
       {!hasAcknowledgedBackup && (
         <p className="mt-2 text-xs text-amber-700 dark:text-amber-300">
-          {t('settings.backupConfirmRequired')}
+          {t("settings.backupConfirmRequired")}
         </p>
       )}
     </div>
@@ -270,10 +338,11 @@ export function UpdateDialog({ isOpen, onClose, initialStatus }: UpdateDialogPro
       return (
         <div className="flex-1 flex flex-col items-center justify-center text-center py-8">
           <p className="text-muted-foreground mb-4">
-            {t('settings.version')}: {currentVersion} · {t(
-              updateChannel === 'preview'
-                ? 'settings.previewChannel'
-                : 'settings.stableChannel',
+            {t("settings.version")}: {currentVersion} ·{" "}
+            {t(
+              updateChannel === "preview"
+                ? "settings.previewChannel"
+                : "settings.stableChannel",
             )}
           </p>
           <button
@@ -281,24 +350,26 @@ export function UpdateDialog({ isOpen, onClose, initialStatus }: UpdateDialogPro
             className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-white hover:bg-primary/90 transition-colors"
           >
             <RefreshCwIcon className="w-4 h-4" />
-            {t('settings.checkUpdate')}
+            {t("settings.checkUpdate")}
           </button>
         </div>
       );
     }
 
     switch (updateStatus.status) {
-      case 'checking':
+      case "checking":
         return (
           <div className="flex-1 flex flex-col items-center justify-center text-center py-8">
             <Loader2Icon className="w-8 h-8 animate-spin mx-auto mb-4 text-primary" />
             <p className="text-muted-foreground">
-              {useMirror ? t('settings.usingMirrorSource') : t('settings.checking')}
+              {useMirror
+                ? t("settings.usingMirrorSource")
+                : t("settings.checking")}
             </p>
           </div>
         );
 
-      case 'available':
+      case "available":
         return (
           <div className="py-4">
             <div className="flex items-center gap-3 mb-4">
@@ -306,18 +377,25 @@ export function UpdateDialog({ isOpen, onClose, initialStatus }: UpdateDialogPro
                 <DownloadIcon className="w-6 h-6 text-green-500" />
               </div>
               <div>
-                <h3 className="font-semibold text-lg">{t('settings.updateAvailable')}</h3>
+                <h3 className="font-semibold text-lg">
+                  {t("settings.updateAvailable")}
+                </h3>
                 <p className="text-sm text-muted-foreground">
-                  {t('settings.updateAvailableDesc', { version: updateStatus.info.version })}
+                  {t("settings.updateAvailableDesc", {
+                    version: updateStatus.info.version,
+                  })}
                 </p>
               </div>
             </div>
             {updateStatus.info.releaseNotes && (
               <div className="mb-4 p-4 rounded-lg bg-muted/50 flex-1 min-h-[200px] max-h-[350px] overflow-y-auto prose prose-sm dark:prose-invert max-w-none">
                 <p className="text-xs font-medium text-muted-foreground mb-2">
-                  {t('settings.releaseNotes')}
+                  {t("settings.releaseNotes")}
                 </p>
-                <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeSanitize]}>
+                <ReactMarkdown
+                  remarkPlugins={[remarkGfm]}
+                  rehypePlugins={[rehypeSanitize]}
+                >
                   {updateStatus.info.releaseNotes}
                 </ReactMarkdown>
               </div>
@@ -330,36 +408,40 @@ export function UpdateDialog({ isOpen, onClose, initialStatus }: UpdateDialogPro
                 className="flex-1 flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-primary text-white hover:bg-primary/90 transition-colors disabled:cursor-not-allowed disabled:opacity-50"
               >
                 <DownloadIcon className="w-4 h-4" />
-                {t('settings.downloadUpdate')}
+                {t("settings.downloadUpdate")}
               </button>
               <button
                 onClick={onClose}
                 className="px-4 py-2 rounded-lg bg-muted hover:bg-muted/80 transition-colors"
               >
-                {t('settings.installLater')}
+                {t("settings.installLater")}
               </button>
             </div>
           </div>
         );
 
-      case 'not-available':
+      case "not-available":
         return (
           <div className="flex-1 flex flex-col items-center justify-center text-center py-8">
             <CheckCircleIcon className="w-12 h-12 mx-auto mb-4 text-green-500" />
-            <h3 className="font-semibold text-lg mb-1">{t('settings.noUpdate')}</h3>
+            <h3 className="font-semibold text-lg mb-1">
+              {t("settings.noUpdate")}
+            </h3>
             <p className="text-sm text-muted-foreground">
-              {t('settings.noUpdateDesc', { version: currentVersion })}
+              {t("settings.noUpdateDesc", {
+                version: currentVersion || updateStatus.info.version,
+              })}
             </p>
           </div>
         );
 
-      case 'downloading':
+      case "downloading":
         const percent = updateStatus.progress?.percent || 0;
         return (
           <div className="flex-1 flex flex-col items-center justify-center py-8">
             <div className="w-full max-w-md mb-4">
               <div className="flex justify-between text-sm mb-2">
-                <span>{t('settings.downloading')}</span>
+                <span>{t("settings.downloading")}</span>
                 <span>{percent.toFixed(1)}%</span>
               </div>
               <div className="h-2 bg-muted rounded-full overflow-hidden">
@@ -370,13 +452,13 @@ export function UpdateDialog({ isOpen, onClose, initialStatus }: UpdateDialogPro
               </div>
             </div>
             <p className="text-center text-sm text-muted-foreground">
-              {t('settings.downloadProgress', { percent: percent.toFixed(1) })}
+              {t("settings.downloadProgress", { percent: percent.toFixed(1) })}
             </p>
           </div>
         );
 
-      case 'downloaded':
-        const isMac = platform === 'darwin';
+      case "downloaded":
+        const isMac = platform === "darwin";
         return (
           <div className="py-4">
             <div className="flex items-center gap-3 mb-4">
@@ -384,21 +466,23 @@ export function UpdateDialog({ isOpen, onClose, initialStatus }: UpdateDialogPro
                 <CheckCircleIcon className="w-6 h-6 text-green-500" />
               </div>
               <div>
-                <h3 className="font-semibold text-lg">{t('settings.downloadComplete')}</h3>
+                <h3 className="font-semibold text-lg">
+                  {t("settings.downloadComplete")}
+                </h3>
                 <p className="text-sm text-muted-foreground">
-                  {isMac ? '' : t('settings.downloadCompleteDesc')}
+                  {isMac ? "" : t("settings.downloadCompleteDesc")}
                 </p>
               </div>
             </div>
             {!isMac && (
               <p className="text-xs text-muted-foreground mb-4">
-                {t('settings.installRestartHint')}
+                {t("settings.installRestartHint")}
               </p>
             )}
             {isMac && (
               <div className="mb-4 p-3 rounded-lg bg-amber-500/10 border border-amber-500/20">
                 <p className="text-sm text-amber-600 dark:text-amber-400 whitespace-pre-line">
-                  {t('settings.macManualInstall')}
+                  {t("settings.macManualInstall")}
                 </p>
               </div>
             )}
@@ -407,20 +491,22 @@ export function UpdateDialog({ isOpen, onClose, initialStatus }: UpdateDialogPro
               <div className="flex gap-2">
                 <button
                   onClick={handleInstall}
-                  disabled={isCreatingBackup || isInstalling || !canInstallUpgrade}
+                  disabled={
+                    isCreatingBackup || isInstalling || !canInstallUpgrade
+                  }
                   className="flex-1 flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-primary text-white hover:bg-primary/90 transition-colors disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   {isMac ? (
                     <>
                       <FolderOpenIcon className="w-4 h-4" />
-                      {t('settings.openDownloadFolder')}
+                      {t("settings.openDownloadFolder")}
                     </>
                   ) : (
                     <>
                       {isInstalling ? (
                         <Loader2Icon className="w-4 h-4 animate-spin" />
                       ) : null}
-                      {t('settings.installNow')}
+                      {t("settings.installNow")}
                     </>
                   )}
                 </button>
@@ -428,57 +514,65 @@ export function UpdateDialog({ isOpen, onClose, initialStatus }: UpdateDialogPro
                   onClick={onClose}
                   className="px-4 py-2 rounded-lg bg-muted hover:bg-muted/80 transition-colors"
                 >
-                  {t('settings.installLater')}
+                  {t("settings.installLater")}
                 </button>
               </div>
               {!isMac && (
                 <button
-                  onClick={() => window.electron?.updater?.openDownloadedUpdate?.()}
+                  onClick={() =>
+                    window.electron?.updater?.openDownloadedUpdate?.()
+                  }
                   className="flex items-center justify-center gap-2 px-4 py-2 rounded-lg border border-border hover:bg-muted/50 transition-colors text-sm"
                 >
                   <FolderOpenIcon className="w-4 h-4" />
-                  {t('settings.openDownloadFolder')}
+                  {t("settings.openDownloadFolder")}
                 </button>
               )}
             </div>
           </div>
         );
 
-      case 'error':
+      case "error":
         return (
           <div className="text-center py-6 flex flex-col h-full shrink-0">
             <div className="w-12 h-12 mx-auto mb-3 rounded-full bg-red-500/10 flex items-center justify-center">
               <XIcon className="w-6 h-6 text-red-500" />
             </div>
-            <h3 className="font-semibold text-lg mb-1 text-red-500">{t('common.error')}</h3>
+            <h3 className="font-semibold text-lg mb-1 text-red-500">
+              {t("common.error")}
+            </h3>
             <p className="text-sm text-muted-foreground break-all whitespace-pre-wrap max-h-24 overflow-y-auto mb-4 px-2">
-              {updateStatus.error.includes('SHA512') 
-                ? t('error.sha512Desc', updateStatus.error)
+              {updateStatus.error.includes("SHA512")
+                ? t("error.sha512Desc", updateStatus.error)
                 : updateStatus.error}
             </p>
 
             {/* SHA512 error: show open folder button */}
-            {updateStatus.error.includes('SHA512') && (
+            {updateStatus.error.includes("SHA512") && (
               <div className="mb-4">
                 <button
-                  onClick={() => window.electron?.updater?.openDownloadedUpdate?.()}
+                  onClick={() =>
+                    window.electron?.updater?.openDownloadedUpdate?.()
+                  }
                   className="flex items-center justify-center gap-2 w-full px-4 py-2.5 rounded-xl bg-green-600 text-white hover:bg-green-700 transition-all text-sm font-medium shadow-sm active:scale-95"
                 >
                   <FolderOpenIcon className="w-4 h-4" />
-                  {t('settings.openDownloadFolder')}
+                  {t("settings.openDownloadFolder")}
                 </button>
               </div>
             )}
 
             <div className="space-y-4 mt-auto">
               <div className="p-4 rounded-xl bg-muted/30 border border-border/50 text-left">
-                <p className="text-xs text-muted-foreground mb-3">{t('settings.manualDownloadHint')}</p>
+                <p className="text-xs text-muted-foreground mb-3">
+                  {t("settings.manualDownloadHint")}
+                </p>
                 <button
                   onClick={() => window.electron?.updater?.openReleases()}
                   className="flex items-center justify-center gap-2 w-full px-4 py-2.5 rounded-xl bg-background border border-border hover:bg-muted transition-all text-sm font-medium shadow-sm active:scale-95"
                 >
                   <ExternalLinkIcon className="w-4 h-4 text-muted-foreground" />
-                  {t('settings.manualDownload')}
+                  {t("settings.manualDownload")}
                 </button>
               </div>
             </div>
@@ -488,18 +582,21 @@ export function UpdateDialog({ isOpen, onClose, initialStatus }: UpdateDialogPro
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={onClose}>
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
+      onClick={onClose}
+    >
       <div
         className="w-full max-w-xl mx-4 p-6 rounded-2xl bg-card border border-border shadow-xl min-h-[400px] flex flex-col"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold">{t('settings.checkUpdate')}</h2>
+          <h2 className="text-lg font-semibold">{t("settings.checkUpdate")}</h2>
           <span className="ml-3 rounded-full bg-muted px-2.5 py-1 text-xs text-muted-foreground">
             {t(
-              updateChannel === 'preview'
-                ? 'settings.previewChannel'
-                : 'settings.stableChannel',
+              updateChannel === "preview"
+                ? "settings.previewChannel"
+                : "settings.stableChannel",
             )}
           </span>
           <button
@@ -509,9 +606,7 @@ export function UpdateDialog({ isOpen, onClose, initialStatus }: UpdateDialogPro
             <XIcon className="w-5 h-5 text-muted-foreground" />
           </button>
         </div>
-        <div className="flex-1 flex flex-col">
-          {renderContent()}
-        </div>
+        <div className="flex-1 flex flex-col">{renderContent()}</div>
       </div>
     </div>
   );
