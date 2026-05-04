@@ -1,5 +1,12 @@
 ## [Unreleased]
 
+## [0.5.11] - 2026-05-05
+
+### 维护 / Maintenance
+
+- 🚀 **项目级发版 Skill**：新增 `release-publish` 项目级 Codex Skill，把“提交推送 / 发版 / GitHub Releases”固化为完整正式发布流程，覆盖版本决策、敏感文件排除、验证门槛、tag 推送、GitHub Actions 监听、Release 补救和自动更新源校验
+  - **Project Release Skill**: Added the project-level `release-publish` Codex Skill that turns “commit and push / release / GitHub Releases” requests into a full formal release workflow covering version decisions, sensitive-file exclusions, validation gates, tag pushes, GitHub Actions monitoring, Release repair, and auto-update feed verification.
+
 ## [0.5.10] - 2026-05-04
 
 ### 修复 / Fixed
