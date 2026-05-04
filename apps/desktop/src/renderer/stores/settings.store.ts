@@ -292,6 +292,7 @@ interface SettingsState {
   skillInstallMethod: "symlink" | "copy";
   autoScanInstalledSkills: boolean;
   autoScanStoreSkillsBeforeInstall: boolean;
+  skillsShApiKey: string;
 
   // Actions
   // 操作
@@ -376,6 +377,7 @@ interface SettingsState {
   setSkillInstallMethod: (method: "symlink" | "copy") => void;
   setAutoScanInstalledSkills: (enabled: boolean) => void;
   setAutoScanStoreSkillsBeforeInstall: (enabled: boolean) => void;
+  setSkillsShApiKey: (apiKey: string) => void;
 }
 
 function syncSettingsToMain(settings: Partial<Settings>): void {
@@ -471,6 +473,7 @@ export const useSettingsStore = create<SettingsState>()(
         skillInstallMethod: "symlink" as const,
         autoScanInstalledSkills: false,
         autoScanStoreSkillsBeforeInstall: false,
+        skillsShApiKey: "",
 
         setCreationMode: (mode) => setTouched({ creationMode: mode }),
         setTranslationMode: (mode) => setTouched({ translationMode: mode }),
@@ -913,6 +916,7 @@ export const useSettingsStore = create<SettingsState>()(
           setTouched({ autoScanInstalledSkills: enabled }),
         setAutoScanStoreSkillsBeforeInstall: (enabled) =>
           setTouched({ autoScanStoreSkillsBeforeInstall: enabled }),
+        setSkillsShApiKey: (apiKey) => setTouched({ skillsShApiKey: apiKey }),
       };
     },
     {
@@ -956,6 +960,9 @@ export const useSettingsStore = create<SettingsState>()(
         }
         if (typeof next.autoScanStoreSkillsBeforeInstall !== "boolean") {
           next.autoScanStoreSkillsBeforeInstall = false;
+        }
+        if (typeof next.skillsShApiKey !== "string") {
+          next.skillsShApiKey = "";
         }
         if (typeof next.splitListWidth !== "number") {
           next.splitListWidth = DEFAULT_SPLIT_LIST_WIDTH;

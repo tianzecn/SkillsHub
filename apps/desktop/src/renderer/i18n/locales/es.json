@@ -832,7 +832,11 @@
     "previewChannel": "Canal preview",
     "joinPreviewChannel": "Unirse a versiones preview",
     "joinPreviewChannelDesc": "Solo al activarlo, la búsqueda de actualizaciones incluirá builds preview / prerelease de GitHub Releases.",
-    "previewChannelWarning": "Las builds preview pueden ser inestables. Haz una copia de seguridad antes de actualizar y úsalas principalmente para probar correcciones."
+    "previewChannelWarning": "Las builds preview pueden ser inestables. Haz una copia de seguridad antes de actualizar y úsalas principalmente para probar correcciones.",
+    "skillsShCommunitySource": "Fuente comunitaria skills.sh",
+    "skillsShApiKey": "Clave API de skills.sh",
+    "skillsShApiKeyPlaceholder": "Clave API opcional, p. ej. sk_live_...",
+    "skillsShApiKeyDesc": "Opcional. Solo se usa al cargar la fuente comunitaria integrada de skills.sh. Se guarda en la configuración local de PromptHub igual que las claves API locales de modelos."
   },
   "import": {
     "clipboardTitle": "Importar Prompt desde el portapapeles",
@@ -1392,7 +1396,20 @@
     "checkUpdate": "Buscar actualización",
     "updating": "Actualizando...",
     "update": "Actualizar",
-    "overwriteLocalChanges": "Sobrescribir cambios locales"
+    "overwriteLocalChanges": "Sobrescribir cambios locales",
+    "skillsShViewTrending": "Tendencias",
+    "skillsShViewAllTime": "Histórico",
+    "skillsShViewHot": "Popular",
+    "skillsShViewCurated": "Oficial",
+    "skillsShShowHidden": "Mostrar filtrados",
+    "skillsShPrivacyHint": "Las búsquedas en esta fuente se envían a skills.sh. PromptHub no guarda los términos de búsqueda.",
+    "skillsShFallbackRetryAfter": "La API de skills.sh está limitada. Se muestran resultados degradados; vuelve a intentar en {{seconds}} segundos.",
+    "skillsShFallbackMode": "La API de skills.sh no está disponible. Se muestran resultados degradados del catálogo público. Pueden faltar detalles, auditorías o archivos.",
+    "skillsShApiKeyCta": "Agrega una clave API de skills.sh en Settings > Skill para activar metadatos completos, instantáneas de archivos y auditorías.",
+    "skillsShAuditReviewRequired": "La auditoría de skills.sh marcó este skill. Abre el detalle para revisar y confirmar antes de importar.",
+    "skillsShAudits": "Auditorías de skills.sh",
+    "skillsShAuditHighRiskTitle": "Advertencia de auditoría skills.sh",
+    "skillsShAuditHighRiskMessage": "Uno o más socios de auditoría de skills.sh marcaron este skill. Revisa los hallazgos antes de importar."
   },
   "error": {
     "sha512Desc": "SHA512 checksum mismatch.\nThis is usually caused by CDN cache inconsistencies or network issues.\nThe file may have been downloaded successfully. You can try to install it manually."

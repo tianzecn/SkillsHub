@@ -2,6 +2,7 @@ import type { SkillDB } from "../database/skill";
 import { registerSkillCrudHandlers } from "./skill/crud-handlers";
 import { registerSkillLocalRepoHandlers } from "./skill/local-repo-handlers";
 import { registerSkillPlatformHandlers } from "./skill/platform-handlers";
+import { registerSkillsShHandlers } from "./skill/skills-sh-handlers";
 import { registerSkillVersionHandlers } from "./skill/version-handlers";
 
 /**
@@ -15,4 +16,5 @@ export function registerSkillIPC(db: SkillDB): void {
   registerSkillPlatformHandlers(context);
   registerSkillLocalRepoHandlers(context);
   registerSkillVersionHandlers(context);
+  registerSkillsShHandlers();
 }

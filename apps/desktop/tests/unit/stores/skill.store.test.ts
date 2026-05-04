@@ -7,6 +7,7 @@ vi.mock("../../../src/renderer/services/ai", () => ({
 import { useSkillStore } from "../../../src/renderer/stores/skill.store";
 import { createSkillFixture } from "../../fixtures/skills";
 import { installWindowMocks } from "../../helpers/window";
+import type { RegistrySkill } from "@prompthub/shared/types";
 
 const resetSkillStore = () => {
   useSkillStore.setState({
@@ -261,6 +262,135 @@ describe("skill store", () => {
     );
   });
 
+  it("installs skills.sh API file snapshots before using GitHub fallbacks", async () => {
+    const create = vi.fn().mockImplementation(async (data) => ({
+      id: "skill-api",
+      created_at: 1,
+      updated_at: 1,
+      ...data,
+    }));
+    const writeLocalFile = vi.fn().mockResolvedValue(undefined);
+    const fetchGithubTarball = vi.fn();
+
+    (window as any).api.skill.create = create;
+    (window as any).api.skill.writeLocalFile = writeLocalFile;
+    (window as any).api.skill.fetchGithubTarball = fetchGithubTarball;
+    (window as any).api.skill.getAll = vi.fn().mockResolvedValue([]);
+
+    const installed = await useSkillStore.getState().installRegistrySkill({
+      slug: "demo-org-demo-repo-demo-skill",
+      source_id: "demo-org/demo-repo/demo-skill",
+      source_type: "github",
+      install_name: "demo-skill",
+      name: "Demo Skill",
+      description: "API backed demo",
+      category: "dev",
+      author: "demo-org",
+      source_url: "https://github.com/demo-org/demo-repo",
+      store_url: "https://skills.sh/demo-org/demo-repo/demo-skill",
+      tags: ["demo"],
+      version: "hash:abc123",
+      content: "",
+      remote_hash: "abc123",
+      files: [
+        { relativePath: "SKILL.md", content: "# Demo Skill\n" },
+        { relativePath: "scripts/setup.sh", content: "echo setup\n" },
+      ],
+      compatibility: ["codex"],
+    });
+
+    expect(installed?.installed_content_hash).toBe("abc123");
+    expect(create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        name: "demo-skill",
+        content: "# Demo Skill\n",
+        installed_content_hash: "abc123",
+      }),
+    );
+    expect(fetchGithubTarball).not.toHaveBeenCalled();
+    expect(writeLocalFile).toHaveBeenCalledWith(
+      "skill-api",
+      "scripts/setup.sh",
+      "echo setup\n",
+      { skipVersionSnapshot: true },
+    );
+  });
+
+  it("fetches skills.sh detail content before installing lightweight HTML fallback records", async () => {
+    const detailHtml = `
+      <article>
+        <h2>Summary</h2>
+        <p>Use this skill to apply Supabase Postgres best practices.</p>
+        <h2>SKILL.md</h2>
+        <pre><code>---
+name: supabase-postgres-best-practices
+description: Apply Supabase Postgres best practices.
+tags: [postgres, supabase]
+---
+
+# Supabase Postgres Best Practices
+
+Review schemas, RLS, and indexes before changing production databases.
+        </code></pre>
+        <h2>Repository</h2>
+        <p>supabase/agent-skills</p>
+      </article>
+    `;
+    const create = vi.fn().mockImplementation(async (data) => ({
+      id: "skill-skills-sh",
+      created_at: 1,
+      updated_at: 1,
+      ...data,
+    }));
+    const fetchRemoteContent = vi.fn().mockResolvedValue(detailHtml);
+    const writeLocalFile = vi.fn().mockResolvedValue(undefined);
+
+    (window as any).api.skill.create = create;
+    (window as any).api.skill.fetchRemoteContent = fetchRemoteContent;
+    (window as any).api.skill.writeLocalFile = writeLocalFile;
+    (window as any).api.skill.getAll = vi.fn().mockResolvedValue([]);
+
+    await useSkillStore.getState().installRegistrySkill({
+      slug: "supabase-agent-skills-supabase-postgres-best-practices",
+      source_id: "supabase/agent-skills/supabase-postgres-best-practices",
+      source_type: "html",
+      install_name: "supabase-postgres-best-practices",
+      name: "Supabase Postgres Best Practices",
+      description:
+        "Supabase Postgres Best Practices community skill from supabase/agent-skills",
+      category: "data",
+      author: "supabase",
+      source_url: "https://github.com/supabase/agent-skills",
+      store_url:
+        "https://skills.sh/supabase/agent-skills/supabase-postgres-best-practices",
+      tags: ["supabase", "agent-skills", "postgres"],
+      version: "1.0.0",
+      content: "",
+      compatibility: ["codex"],
+    });
+
+    expect(fetchRemoteContent).toHaveBeenCalledWith(
+      "https://skills.sh/supabase/agent-skills/supabase-postgres-best-practices",
+    );
+    expect(create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        name: "supabase-postgres-best-practices",
+        content: expect.stringContaining(
+          "# Supabase Postgres Best Practices",
+        ),
+        description:
+          "Use this skill to apply Supabase Postgres best practices.",
+        source_url: "https://github.com/supabase/agent-skills",
+        original_tags: ["postgres", "supabase"],
+      }),
+    );
+    expect(writeLocalFile).toHaveBeenCalledWith(
+      "skill-skills-sh",
+      "SKILL.md",
+      expect.stringContaining("# Supabase Postgres Best Practices"),
+    );
+  });
+
   it("blocks installing official registry skills when only placeholder frontmatter is available", async () => {
     const create = vi.fn();
     const fetchRemoteContent = vi
@@ -328,6 +458,43 @@ description: Use this skill for PDF tasks.
         installed_version: "1.0.0",
       }),
     );
+  });
+
+  it("uses skills.sh remote hashes for update detection without comparing them to SKILL.md text hashes", async () => {
+    const registrySkill: RegistrySkill = {
+      slug: "api-skill",
+      name: "API Skill",
+      description: "API backed",
+      category: "dev",
+      author: "skills.sh",
+      source_url: "https://github.com/demo/api-skill",
+      tags: ["api"],
+      version: "hash:abc123",
+      content: "# API Skill\n",
+      remote_hash: "abc123",
+    };
+
+    useSkillStore.setState({
+      skills: [
+        createSkillFixture({
+          id: "skill-api",
+          name: "api-skill",
+          registry_slug: "api-skill",
+          content: "# API Skill\n\nLocal rendered SKILL.md text\n",
+          instructions: "# API Skill\n\nLocal rendered SKILL.md text\n",
+          installed_content_hash: "abc123",
+          installed_version: "hash:abc123",
+        }),
+      ],
+      registrySkills: [registrySkill],
+    });
+
+    const check = await useSkillStore
+      .getState()
+      .getRegistrySkillUpdateStatus(registrySkill);
+
+    expect(check.status).toBe("up-to-date");
+    expect(check.localModified).toBe(false);
   });
 
   it("updates a pristine registry skill after creating a version snapshot", async () => {

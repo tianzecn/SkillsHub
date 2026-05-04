@@ -832,7 +832,11 @@
     "previewChannel": "プレビューチャンネル",
     "joinPreviewChannel": "プレビュー版に参加",
     "joinPreviewChannelDesc": "参加した場合のみ、GitHub Releases の prerelease プレビュー版も更新確認に含めます。",
-    "previewChannelWarning": "プレビュー版は不安定な場合があります。更新前にデータをバックアップし、新しい修正のテスト用途で利用してください。"
+    "previewChannelWarning": "プレビュー版は不安定な場合があります。更新前にデータをバックアップし、新しい修正のテスト用途で利用してください。",
+    "skillsShCommunitySource": "skills.sh コミュニティソース",
+    "skillsShApiKey": "skills.sh API Key",
+    "skillsShApiKeyPlaceholder": "任意の API Key（例: sk_live_...）",
+    "skillsShApiKeyDesc": "任意です。内蔵の skills.sh コミュニティソースを読み込む場合にだけ使用します。ローカルモデルの API Key と同じく、ローカルの PromptHub 設定に保存されます。"
   },
   "import": {
     "clipboardTitle": "クリップボードから Prompt をインポート",
@@ -1392,7 +1396,20 @@
     "checkUpdate": "更新を確認",
     "updating": "更新中...",
     "update": "更新",
-    "overwriteLocalChanges": "ローカル変更を上書き"
+    "overwriteLocalChanges": "ローカル変更を上書き",
+    "skillsShViewTrending": "トレンド",
+    "skillsShViewAllTime": "全期間",
+    "skillsShViewHot": "ホット",
+    "skillsShViewCurated": "公式",
+    "skillsShShowHidden": "フィルター済みを表示",
+    "skillsShPrivacyHint": "このソースの検索は skills.sh に送信されます。PromptHub は検索語を保存しません。",
+    "skillsShFallbackRetryAfter": "skills.sh API がレート制限中です。縮退結果を表示しています。{{seconds}} 秒後に再試行してください。",
+    "skillsShFallbackMode": "skills.sh API を利用できません。公開カタログの縮退結果を表示しています。一部の詳細、監査、ファイルが欠ける場合があります。",
+    "skillsShApiKeyCta": "Settings > Skill で skills.sh API Key を追加すると、完全なメタデータ、ファイルスナップショット、監査を有効化できます。",
+    "skillsShAuditReviewRequired": "skills.sh の監査がこの skill を警告しました。詳細画面で確認してからインポートしてください。",
+    "skillsShAudits": "skills.sh 監査",
+    "skillsShAuditHighRiskTitle": "skills.sh 監査警告",
+    "skillsShAuditHighRiskMessage": "1 つ以上の skills.sh 監査パートナーがこの skill を警告しました。インポート前に内容を確認してください。"
   },
   "error": {
     "sha512Desc": "SHA512 checksum mismatch.\nThis is usually caused by CDN cache inconsistencies or network issues.\nThe file may have been downloaded successfully. You can try to install it manually."

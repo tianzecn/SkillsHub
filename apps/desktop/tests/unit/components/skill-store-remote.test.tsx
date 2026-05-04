@@ -348,6 +348,194 @@ describe("SkillStore remote loading", () => {
     );
   });
 
+  it("loads the community store through the skills.sh API client", async () => {
+    const loadSkillsShStore = vi.fn().mockResolvedValue({
+      skills: [
+        {
+          slug: "demo-org-demo-repo-demo-skill",
+          source_id: "demo-org/demo-repo/demo-skill",
+          source_type: "github",
+          name: "Demo Skill",
+          install_name: "demo-skill",
+          description: "API backed demo",
+          category: "dev",
+          author: "demo-org",
+          source_url: "https://github.com/demo-org/demo-repo",
+          store_url: "https://skills.sh/demo-org/demo-repo/demo-skill",
+          tags: ["demo"],
+          version: "hash:abc123",
+          content: "---\nname: Demo Skill\n---\n# Demo",
+          remote_hash: "abc123",
+          compatibility: ["codex"],
+        },
+      ],
+      mode: "api",
+      source: "api-v1",
+      cacheMaxAgeSeconds: 60,
+    });
+    const fetchRemoteContent = vi.fn();
+
+    installWindowMocks({
+      api: {
+        settings: {
+          get: vi.fn().mockResolvedValue({
+            device: {
+              storeAutoSync: false,
+              storeSyncCadence: "manual",
+            },
+          }),
+        },
+        skill: {
+          loadSkillsShStore,
+          fetchRemoteContent,
+          scanLocalPreview: vi.fn().mockResolvedValue([]),
+        },
+      },
+    });
+
+    useSettingsStore.setState({
+      skillsShApiKey: "sk_test",
+    } as Partial<ReturnType<typeof useSettingsStore.getState>>);
+    useSkillStore.setState({
+      selectedStoreSourceId: "community",
+    });
+
+    await act(async () => {
+      await renderWithI18n(<SkillStore />, { language: "en" });
+    });
+
+    await waitFor(() => {
+      expect(
+        useSkillStore.getState().remoteStoreEntries["community"]?.skills,
+      ).toHaveLength(1);
+    });
+
+    expect(loadSkillsShStore).toHaveBeenCalledWith(
+      expect.objectContaining({
+        apiKey: "sk_test",
+        view: "trending",
+        includeDuplicates: false,
+        includeIncomplete: false,
+      }),
+    );
+    expect(fetchRemoteContent).not.toHaveBeenCalled();
+    expect(
+      useSkillStore.getState().remoteStoreEntries["community"]?.expiresAt,
+    ).toBeGreaterThan(Date.now());
+  });
+
+  it("shows a degradation banner when the skills.sh API asks for fallback", async () => {
+    const loadSkillsShStore = vi.fn().mockResolvedValue({
+      skills: [],
+      mode: "fallback",
+      source: "html",
+      fallbackReason: "Rate limit exceeded",
+      retryAfterSeconds: 12,
+    });
+    const fetchRemoteContent = vi.fn().mockResolvedValue("<html></html>");
+
+    installWindowMocks({
+      api: {
+        settings: {
+          get: vi.fn().mockResolvedValue({
+            device: {
+              storeAutoSync: false,
+              storeSyncCadence: "manual",
+            },
+          }),
+        },
+        skill: {
+          loadSkillsShStore,
+          fetchRemoteContent,
+          scanLocalPreview: vi.fn().mockResolvedValue([]),
+        },
+      },
+    });
+
+    useSkillStore.setState({
+      selectedStoreSourceId: "community",
+    });
+
+    let view:
+      | Awaited<ReturnType<typeof renderWithI18n>>
+      | undefined;
+    await act(async () => {
+      view = await renderWithI18n(<SkillStore />, {
+        language: "en",
+      });
+    });
+
+    expect(
+      await view?.findByText(/retry after 12 seconds/i),
+    ).toBeInTheDocument();
+    expect(fetchRemoteContent).toHaveBeenCalledWith("https://skills.sh");
+  });
+
+  it("keeps skills.sh legacy search results even when local text does not match the query", async () => {
+    const loadSkillsShStore = vi.fn().mockResolvedValue({
+      skills: [],
+      mode: "fallback",
+      source: "html",
+      fallbackReason: "authentication_required",
+    });
+    const fetchRemoteContent = vi.fn(async (url: string) => {
+      if (
+        url ===
+        "https://skills.sh/api/search?q=postgres&limit=200&offset=0"
+      ) {
+        return JSON.stringify({
+          skills: [
+            {
+              source: "microsoft/github-copilot-for-azure",
+              skillId: "azure-db",
+              name: "Azure DB",
+              installs: 34757,
+            },
+          ],
+        });
+      }
+
+      throw new Error(`Unexpected URL: ${url}`);
+    });
+
+    installWindowMocks({
+      api: {
+        settings: {
+          get: vi.fn().mockResolvedValue({
+            device: {
+              storeAutoSync: false,
+              storeSyncCadence: "manual",
+            },
+          }),
+        },
+        skill: {
+          loadSkillsShStore,
+          fetchRemoteContent,
+          scanLocalPreview: vi.fn().mockResolvedValue([]),
+        },
+      },
+    });
+
+    useSkillStore.setState({
+      selectedStoreSourceId: "community",
+      storeSearchQuery: "postgres",
+    });
+
+    let view:
+      | Awaited<ReturnType<typeof renderWithI18n>>
+      | undefined;
+    await act(async () => {
+      view = await renderWithI18n(<SkillStore />, {
+        language: "en",
+      });
+    });
+
+    expect(await view?.findByText("Azure Db")).toBeInTheDocument();
+    expect(fetchRemoteContent).toHaveBeenCalledWith(
+      "https://skills.sh/api/search?q=postgres&limit=200&offset=0",
+    );
+  });
+
   it("falls back to repository root README when no SKILL.md exists", async () => {
     const fetchRemoteContent = vi.fn(async (url: string) => {
       if (url === "https://api.github.com/repos/demo/skills") {
@@ -426,13 +614,13 @@ describe("SkillStore remote loading", () => {
   });
 
   it("does not block install when only static scan reports high risk", async () => {
-    const installFromRegistry = vi.fn().mockResolvedValue({
+    const installRegistrySkill = vi.fn().mockResolvedValue({
       id: "installed",
       name: "PDF",
     });
 
     useSkillStore.setState({
-      installFromRegistry,
+      installRegistrySkill,
       skills: [],
     } as never);
 
@@ -484,7 +672,9 @@ describe("SkillStore remote loading", () => {
       getByText("Import to My Skills").click();
     });
 
-    expect(installFromRegistry).toHaveBeenCalledWith("pdf");
+    expect(installRegistrySkill).toHaveBeenCalledWith(
+      expect.objectContaining({ slug: "pdf" }),
+    );
     expect(showToast).toHaveBeenCalledWith(
       expect.stringContaining("Static scan found potentially risky patterns"),
       "warning",

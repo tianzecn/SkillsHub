@@ -45,6 +45,23 @@ interface SkillStoreDetailProps {
   onClose: () => void;
 }
 
+function buildStoreSkillSafetyContent(skill: RegistrySkill): string {
+  if (!skill.files?.length) {
+    return skill.content;
+  }
+  return skill.files
+    .map((file) => `# ${file.relativePath}\n${file.content}`)
+    .join("\n\n");
+}
+
+function getHighRiskAudits(skill: RegistrySkill) {
+  return (skill.audit_results ?? []).filter((audit) => {
+    const status = String(audit.status || "").toLowerCase();
+    const riskLevel = String(audit.riskLevel || "").toUpperCase();
+    return status === "fail" || riskLevel === "HIGH" || riskLevel === "CRITICAL";
+  });
+}
+
 /**
  * Skill Store Detail Modal
  * 技能商店详情弹窗
@@ -56,8 +73,8 @@ export function SkillStoreDetail({
 }: SkillStoreDetailProps) {
   const { t, i18n } = useTranslation();
   const { showToast } = useToast();
-  const installFromRegistry = useSkillStore(
-    (state) => state.installFromRegistry,
+  const installRegistrySkill = useSkillStore(
+    (state) => state.installRegistrySkill,
   );
   const updateRegistrySkill = useSkillStore((state) => state.updateRegistrySkill);
   const getRegistrySkillUpdateStatus = useSkillStore(
@@ -90,6 +107,8 @@ export function SkillStoreDetail({
   );
   const [pendingHighRiskInstallReport, setPendingHighRiskInstallReport] =
     useState<SkillSafetyReport | null>(null);
+  const [pendingAuditRiskInstall, setPendingAuditRiskInstall] = useState(false);
+  const highRiskAudits = useMemo(() => getHighRiskAudits(skill), [skill]);
   const groupedSafetyFindings = safetyReport
     ? groupSkillSafetyFindings(safetyReport.findings ?? [])
     : [];
@@ -115,7 +134,7 @@ export function SkillStoreDetail({
     try {
       const report = await window.api.skill.scanSafety({
         name: skill.name,
-        content: skill.content,
+        content: buildStoreSkillSafetyContent(skill),
         sourceUrl: skill.source_url,
         contentUrl: skill.content_url,
         securityAudits: skill.security_audits,
@@ -149,6 +168,7 @@ export function SkillStoreDetail({
     showToast,
     skill.content,
     skill.content_url,
+    skill.files,
     skill.name,
     skill.security_audits,
     skills,
@@ -222,25 +242,29 @@ export function SkillStoreDetail({
     }
   };
 
-  const handleInstall = async () => {
+  const performInstall = useCallback(async () => {
+    const result = await installRegistrySkill(skill);
+    if (result) {
+      setJustInstalled(true);
+      showToast(
+        t("skill.addedToLibrary", "Added") + `: ${skill.name}`,
+        "success",
+      );
+      setDeploySkill(result);
+      setTimeout(() => setJustInstalled(false), 2000);
+    }
+  }, [installRegistrySkill, showToast, skill, t]);
+
+  const handleInstall = async (skipAuditConfirmation = false) => {
     if (isInstalling || installed) {
+      return;
+    }
+    if (!skipAuditConfirmation && highRiskAudits.length > 0) {
+      setPendingAuditRiskInstall(true);
       return;
     }
     setIsInstalling(true);
     try {
-      const performInstall = async () => {
-        const result = await installFromRegistry(skill.slug);
-        if (result) {
-          setJustInstalled(true);
-          showToast(
-            t("skill.addedToLibrary", "Added") + `: ${skill.name}`,
-            "success",
-          );
-          setDeploySkill(result);
-          setTimeout(() => setJustInstalled(false), 2000);
-        }
-      };
-
       if (autoScanBeforeInstall) {
         const report = await scanSafety();
         const shouldBlockInstall =
@@ -675,6 +699,45 @@ export function SkillStoreDetail({
             </div>
           )}
 
+          {skill.audit_results && skill.audit_results.length > 0 && (
+            <div className="mt-4 p-3 bg-accent/30 rounded-xl border border-border">
+              <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
+                {t("skill.skillsShAudits", "skills.sh Audits")}
+              </span>
+              <div className="mt-2 space-y-2">
+                {skill.audit_results.map((audit) => {
+                  const isRisky = getHighRiskAudits({ ...skill, audit_results: [audit] }).length > 0;
+                  return (
+                    <div
+                      key={`${audit.provider}-${audit.slug}`}
+                      className="rounded-lg border border-border/70 bg-background/60 p-2"
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-xs font-medium text-foreground">
+                          {audit.provider}
+                        </span>
+                        <span
+                          className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${
+                            isRisky
+                              ? "bg-destructive/10 text-destructive"
+                              : audit.status === "warn"
+                                ? "bg-amber-500/10 text-amber-700 dark:text-amber-300"
+                                : "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400"
+                          }`}
+                        >
+                          {audit.riskLevel || audit.status}
+                        </span>
+                      </div>
+                      <p className="mt-1 text-[11px] text-muted-foreground">
+                        {audit.summary}
+                      </p>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
           {/* Tags */}
           {skill.tags.length > 0 && (
             <div className="mt-4 flex items-center gap-2 flex-wrap">
@@ -757,7 +820,7 @@ export function SkillStoreDetail({
               </>
             ) : (
               <button
-                onClick={handleInstall}
+                onClick={() => void handleInstall()}
                 disabled={isInstalling}
                 className="px-6 py-2.5 bg-primary text-white rounded-xl text-sm font-bold shadow-lg shadow-primary/20 hover:opacity-90 transition-all disabled:opacity-50 flex items-center gap-2 active:scale-95"
               >
@@ -795,16 +858,7 @@ export function SkillStoreDetail({
             setPendingHighRiskInstallReport(null);
             setIsInstalling(true);
             try {
-              const result = await installFromRegistry(skill.slug);
-              if (result) {
-                setJustInstalled(true);
-                showToast(
-                  t("skill.addedToLibrary", "Added") + `: ${skill.name}`,
-                  "success",
-                );
-                setDeploySkill(result);
-                setTimeout(() => setJustInstalled(false), 2000);
-              }
+              await performInstall();
             } catch (error) {
               showToast(
                 t("skill.updateFailed", "Failed") + `: ${error}`,
@@ -840,6 +894,41 @@ export function SkillStoreDetail({
                   "If you trust the source, you may proceed. Otherwise, review the source code first.",
                 )}
               </p>
+            </div>
+          ) : (
+            ""
+          )
+        }
+        confirmText={t("skill.addAnyway", "Add Anyway")}
+        cancelText={t("common.cancel", "Cancel")}
+        variant="destructive"
+      />
+
+      <ConfirmDialog
+        isOpen={pendingAuditRiskInstall}
+        onClose={() => setPendingAuditRiskInstall(false)}
+        onConfirm={() => {
+          setPendingAuditRiskInstall(false);
+          void handleInstall(true);
+        }}
+        title={t("skill.skillsShAuditHighRiskTitle", "skills.sh Audit Warning")}
+        message={
+          highRiskAudits.length > 0 ? (
+            <div className="space-y-3 text-left">
+              <p>
+                {t(
+                  "skill.skillsShAuditHighRiskMessage",
+                  "One or more skills.sh audit partners flagged this skill. Review the findings before importing.",
+                )}
+              </p>
+              <ul className="space-y-1">
+                {highRiskAudits.slice(0, 5).map((audit) => (
+                  <li key={`${audit.provider}-${audit.slug}`}>
+                    • {audit.provider}: {audit.riskLevel || audit.status} ·{" "}
+                    {audit.summary}
+                  </li>
+                ))}
+              </ul>
             </div>
           ) : (
             ""

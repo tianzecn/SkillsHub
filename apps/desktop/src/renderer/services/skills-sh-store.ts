@@ -9,7 +9,7 @@ const DEFAULT_COMPATIBILITY = [
   "opencode",
   "antigravity",
 ];
-const DETAIL_PATH_PATTERN = /^\/([^/]+)\/([^/]+)\/([^/?#]+)\/?$/;
+const DETAIL_PATH_PATTERN = /^\/([^/?#]+)(?:\/([^/?#]+))?\/([^/?#]+)\/?$/;
 const HTML_ENTITY_MAP: Record<string, string> = {
   amp: "&",
   apos: "'",
@@ -104,6 +104,61 @@ function inferCategory(slug: string, description: string): SkillCategory {
   return "general";
 }
 
+function formatCount(value: number | undefined): string | undefined {
+  if (!Number.isFinite(value)) return undefined;
+  const count = value ?? 0;
+  if (count >= 1_000_000) {
+    return `${(count / 1_000_000).toFixed(1).replace(/\.0$/, "")}M`;
+  }
+  if (count >= 1_000) {
+    return `${(count / 1_000).toFixed(1).replace(/\.0$/, "")}K`;
+  }
+  return String(count);
+}
+
+function getEntrySource(entry: SkillsShLeaderboardEntry): string {
+  return entry.repo ? `${entry.owner}/${entry.repo}` : entry.owner;
+}
+
+function getEntrySourceUrl(entry: SkillsShLeaderboardEntry): string {
+  const source = getEntrySource(entry);
+  return entry.repo ? `https://github.com/${source}` : `https://${source}`;
+}
+
+function parseEmbeddedEntries(html: string, limit: number): SkillsShLeaderboardEntry[] {
+  const entries: SkillsShLeaderboardEntry[] = [];
+  const seen = new Set<string>();
+  const pattern =
+    /\\"source\\":\\"([^\\"]+)\\",\\"skillId\\":\\"([^\\"]+)\\",\\"name\\":\\"([^\\"]+)\\",\\"installs\\":(\d+)/g;
+
+  let match: RegExpExecArray | null;
+  while ((match = pattern.exec(html)) !== null) {
+    const [, source, skillId, name, installsRaw] = match;
+    const sourceParts = source.split("/").filter(Boolean);
+    const owner = sourceParts[0];
+    const repo = sourceParts.length > 1 ? sourceParts.slice(1).join("/") : "";
+    if (!owner || !skillId) continue;
+
+    const detailPath = `/${source}/${skillId}`;
+    if (seen.has(detailPath)) continue;
+
+    seen.add(detailPath);
+    entries.push({
+      owner,
+      repo,
+      skillName: decodeHtmlEntities(name || skillId),
+      detailPath,
+      detailUrl: new URL(detailPath, SKILLS_SH_BASE_URL).toString(),
+      rank: entries.length + 1,
+      weeklyInstalls: formatCount(Number.parseInt(installsRaw, 10)),
+    });
+
+    if (entries.length >= limit) break;
+  }
+
+  return entries;
+}
+
 function parseFrontmatter(content: string): {
   name?: string;
   description?: string;
@@ -180,6 +235,10 @@ export function parseSkillsShLeaderboard(
   const entries: SkillsShLeaderboardEntry[] = [];
   const seen = new Set<string>();
   const limit = options?.limit ?? 24;
+  const embeddedEntries = parseEmbeddedEntries(html, limit);
+  if (embeddedEntries.length > 0) {
+    return embeddedEntries;
+  }
   const linkPattern = /<a[^>]+href="(\/[^"/?#]+\/[^"/?#]+\/[^"/?#]+\/?)"[^>]*>([\s\S]*?)<\/a>/gi;
 
   let match: RegExpExecArray | null;
@@ -194,11 +253,11 @@ export function parseSkillsShLeaderboard(
       continue;
     }
 
-    const [, owner, repo, skillName] = parsed;
+    const [, owner, repo = "", skillName] = parsed;
     const anchorText = stripTags(match[2]);
     const lowerAnchorText = anchorText.toLowerCase();
-    const repoLabel = `${owner}/${repo}`.toLowerCase();
-    if (!lowerAnchorText.includes(repoLabel) && !lowerAnchorText.includes(skillName.toLowerCase())) {
+    const sourceLabel = repo ? `${owner}/${repo}` : owner;
+    if (!lowerAnchorText.includes(sourceLabel.toLowerCase()) && !lowerAnchorText.includes(skillName.toLowerCase())) {
       continue;
     }
 
@@ -222,6 +281,38 @@ export function parseSkillsShLeaderboard(
   }
 
   return entries;
+}
+
+export function mapSkillsShEntryToRegistrySkill(
+  entry: SkillsShLeaderboardEntry,
+): RegistrySkill {
+  const displayName = humanizeSkillName(entry.skillName);
+  const source = getEntrySource(entry);
+  const description = `${displayName} community skill from ${source}`;
+  return {
+    slug: slugify(`${source}-${entry.skillName}`),
+    source_id: `${source}/${entry.skillName}`,
+    source_type: "html",
+    name: displayName,
+    install_name: entry.skillName,
+    description,
+    category: inferCategory(entry.skillName, description),
+    author: entry.owner,
+    source_url: getEntrySourceUrl(entry),
+    store_url: entry.detailUrl,
+    install_url: getEntrySourceUrl(entry),
+    tags: Array.from(
+      new Set(
+        [entry.owner, entry.repo, ...entry.skillName.split(/[-_]+/)]
+          .map((tag) => tag.trim().toLowerCase())
+          .filter(Boolean),
+      ),
+    ),
+    version: "1.0.0",
+    content: "",
+    compatibility: DEFAULT_COMPATIBILITY,
+    weekly_installs: entry.weeklyInstalls,
+  };
 }
 
 export function parseSkillsShDetail(
@@ -254,7 +345,7 @@ export function parseSkillsShDetail(
   }
 
   const repository =
-    extractSimpleMetric(text, "Repository") || `${entry.owner}/${entry.repo}`;
+    extractSimpleMetric(text, "Repository") || getEntrySource(entry);
   const weeklyInstalls =
     extractSimpleMetric(text, "Weekly Installs") || entry.weeklyInstalls;
   const githubStars = extractSimpleMetric(text, "GitHub Stars");
@@ -276,7 +367,9 @@ export function parseSkillsShDetail(
     installedOn.length > 0 ? Array.from(new Set(installedOn)) : DEFAULT_COMPATIBILITY;
   const sourceUrl = repository.match(/^[^/\s]+\/[^/\s]+$/)
     ? `https://github.com/${repository}`
-    : new URL(entry.detailPath, SKILLS_SH_BASE_URL).toString();
+    : repository.includes(".") && !repository.startsWith("http")
+      ? `https://${repository}`
+      : new URL(entry.detailPath, SKILLS_SH_BASE_URL).toString();
   const tags = frontmatter.tags.length > 0
     ? frontmatter.tags
     : Array.from(
@@ -288,7 +381,9 @@ export function parseSkillsShDetail(
       );
 
   return {
-    slug: slugify(`${entry.owner}-${entry.repo}-${entry.skillName}`),
+    slug: slugify(`${getEntrySource(entry)}-${entry.skillName}`),
+    source_id: `${getEntrySource(entry)}/${entry.skillName}`,
+    source_type: "html",
     name: displayName,
     install_name: entry.skillName,
     description,
@@ -296,6 +391,7 @@ export function parseSkillsShDetail(
     author: entry.owner,
     source_url: sourceUrl,
     store_url: entry.detailUrl,
+    install_url: sourceUrl,
     tags,
     version: "1.0.0",
     content: skillMd || `# ${displayName}\n\n${description}`,

@@ -11,6 +11,7 @@ export interface Settings {
   customSkillPlatformPaths?: Record<string, string>;
   skillPlatformOrder?: string[];
   splitListWidth?: number;
+  skillsShApiKey?: string;
   lastManualBackupAt?: string;
   lastManualBackupVersion?: string;
   sync?: SyncSettings;

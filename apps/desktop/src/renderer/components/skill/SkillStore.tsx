@@ -19,6 +19,7 @@ import {
   FolderIcon,
   DatabaseIcon,
   RefreshCwIcon,
+  InfoIcon,
 } from "lucide-react";
 import { SkillStoreDetail } from "./SkillStoreDetail";
 import { SkillStoreCard } from "./SkillStoreCard";
@@ -34,9 +35,10 @@ import { useSkillStore } from "../../stores/skill.store";
 import { useSettingsStore } from "../../stores/settings.store";
 import { isLikelyLocalSource } from "../../services/skill-store-source";
 import {
-  parseSkillsShDetail,
+  mapSkillsShEntryToRegistrySkill,
   parseSkillsShLeaderboard,
   SKILLS_SH_BASE_URL,
+  type SkillsShLeaderboardEntry,
 } from "../../services/skills-sh-store";
 import { useToast } from "../ui/Toast";
 import type {
@@ -46,6 +48,7 @@ import type {
   MarketplaceSkillEntry,
   RegistrySkill,
   Settings,
+  SkillsShCatalogView,
   SkillCategory,
   SkillStoreSource,
 } from "@prompthub/shared/types";
@@ -88,8 +91,7 @@ const CUSTOM_SOURCE_TYPE_OPTIONS: Array<{
 ];
 
 const MAX_REMOTE_STORE_DEPTH = 3;
-const MAX_SKILLS_SH_SKILLS = 24;
-const SKILLS_SH_CONCURRENCY = 4;
+const MAX_SKILLS_SH_SKILLS = 200;
 
 const BUILTIN_REMOTE_STORES: Record<
   string,
@@ -138,6 +140,23 @@ function inferCategory(slug: string, description: string): SkillCategory {
   if (/(ai|generate|translation|speech|image|video|art)/.test(text))
     return "ai";
   return "general";
+}
+
+function buildStoreSkillSafetyContent(skill: RegistrySkill): string {
+  if (!skill.files?.length) {
+    return skill.content;
+  }
+  return skill.files
+    .map((file) => `# ${file.relativePath}\n${file.content}`)
+    .join("\n\n");
+}
+
+function hasHighRiskStoreAudit(skill: RegistrySkill): boolean {
+  return (skill.audit_results ?? []).some((audit) => {
+    const status = String(audit.status || "").toLowerCase();
+    const riskLevel = String(audit.riskLevel || "").toUpperCase();
+    return status === "fail" || riskLevel === "HIGH" || riskLevel === "CRITICAL";
+  });
 }
 
 function resolveUrl(baseUrl: string, value?: string | null) {
@@ -245,34 +264,23 @@ function shouldForceRefreshSource(
   return Date.now() - loadedAt >= intervalMs;
 }
 
-async function runWithConcurrency<T, R>(
-  items: T[],
-  limit: number,
-  worker: (item: T, index: number) => Promise<R | null>,
-): Promise<R[]> {
-  const results: Array<R | null> = new Array(items.length).fill(null);
-  let nextIndex = 0;
-
-  const runWorker = async () => {
-    while (nextIndex < items.length) {
-      const currentIndex = nextIndex;
-      nextIndex += 1;
-      results[currentIndex] = await worker(items[currentIndex], currentIndex);
-    }
-  };
-
-  await Promise.all(
-    Array.from({ length: Math.min(limit, items.length) }, () => runWorker()),
-  );
-
-  return results.filter(isDefined);
-}
-
 function resolveMarketplaceReference(
   entry: string | MarketplaceReferenceEntry,
 ): string | undefined {
   if (typeof entry === "string") return entry;
   return entry.url || entry.index || entry.manifest;
+}
+
+interface LegacySkillsShSearchSkill {
+  id?: string;
+  skillId?: string;
+  name?: string;
+  installs?: number;
+  source?: string;
+}
+
+interface LegacySkillsShSearchResponse {
+  skills?: LegacySkillsShSearchSkill[];
 }
 
 export function SkillStore() {
@@ -331,8 +339,15 @@ export function SkillStore() {
   const [sourceName, setSourceName] = useState("");
   const [sourceUrl, setSourceUrl] = useState("");
   const [loadingSourceId, setLoadingSourceId] = useState<string | null>(null);
+  const [skillsShView, setSkillsShView] =
+    useState<SkillsShCatalogView>("trending");
+  const [showHiddenSkillsShItems, setShowHiddenSkillsShItems] = useState(false);
+  const [skillsShFallbackNotice, setSkillsShFallbackNotice] = useState<
+    string | null
+  >(null);
   const remoteStoreEntriesRef = useRef(remoteStoreEntries);
   const inflightStoreLoadsRef = useRef(new Map<string, Promise<void>>());
+  const skillsShCacheExpiresAtRef = useRef<number | undefined>(undefined);
   const loadRegistryRef = useRef(loadRegistry);
   const loadStoreSourceRef = useRef<
     (sourceId: string, forceRefresh?: boolean) => Promise<void>
@@ -342,6 +357,7 @@ export function SkillStore() {
     (state) => state.autoScanStoreSkillsBeforeInstall,
   );
   const aiModels = useSettingsStore((state) => state.aiModels);
+  const skillsShApiKey = useSettingsStore((state) => state.skillsShApiKey);
   const customStoreSourcesSyncKey = useMemo(
     () =>
       customStoreSources
@@ -614,30 +630,103 @@ export function SkillStore() {
     [scanLocalPreview],
   );
 
+  const loadSkillsShHtmlFallback = useCallback(async (): Promise<RegistrySkill[]> => {
+    const query = storeSearchQuery.trim();
+    let entries: SkillsShLeaderboardEntry[] = [];
+
+    if (query.length >= 2) {
+      const raw = await window.api.skill.fetchRemoteContent(
+        `${SKILLS_SH_BASE_URL}/api/search?q=${encodeURIComponent(query)}&limit=${MAX_SKILLS_SH_SKILLS}&offset=0`,
+      );
+      const data = parseJson<LegacySkillsShSearchResponse>(raw, {});
+      entries = (data.skills || [])
+        .map((skill) => {
+          const source = skill.source || "";
+          const sourceParts = source.split("/").filter(Boolean);
+          const owner = sourceParts[0];
+          const repo =
+            sourceParts.length > 1 ? sourceParts.slice(1).join("/") : "";
+          const skillName = skill.skillId || skill.name || "";
+          if (!owner || !skillName) {
+            return null;
+          }
+          return {
+            owner,
+            repo,
+            skillName,
+            detailPath: `/${source}/${skillName}`,
+            detailUrl: `${SKILLS_SH_BASE_URL}/${source}/${skillName}`,
+            weeklyInstalls:
+              typeof skill.installs === "number" ? String(skill.installs) : undefined,
+          };
+        })
+        .filter(isDefined);
+    } else {
+      const leaderboardHtml =
+        await window.api.skill.fetchRemoteContent(SKILLS_SH_BASE_URL);
+      entries = parseSkillsShLeaderboard(leaderboardHtml, {
+        limit: MAX_SKILLS_SH_SKILLS,
+      });
+    }
+
+    return dedupeRegistrySkills(entries.map(mapSkillsShEntryToRegistrySkill));
+  }, [storeSearchQuery]);
+
   const loadSkillsShStore = useCallback(async (): Promise<RegistrySkill[]> => {
-    const leaderboardHtml =
-      await window.api.skill.fetchRemoteContent(SKILLS_SH_BASE_URL);
-    const entries = parseSkillsShLeaderboard(leaderboardHtml, {
-      limit: MAX_SKILLS_SH_SKILLS,
-    });
+    setSkillsShFallbackNotice(null);
+    const query = storeSearchQuery.trim();
+    try {
+      if (typeof window.api.skill.loadSkillsShStore === "function") {
+        const response = await window.api.skill.loadSkillsShStore({
+          apiKey: skillsShApiKey,
+          view: skillsShView,
+          query: query.length >= 2 ? query : undefined,
+          limit: MAX_SKILLS_SH_SKILLS,
+          includeDuplicates: showHiddenSkillsShItems,
+          includeIncomplete: showHiddenSkillsShItems,
+        });
 
-    const skillsFromDetails = await runWithConcurrency(
-      entries,
-      SKILLS_SH_CONCURRENCY,
-      async (entry) => {
-        try {
-          const detailHtml = await window.api.skill.fetchRemoteContent(
-            entry.detailUrl,
-          );
-          return parseSkillsShDetail(detailHtml, entry);
-        } catch {
-          return null;
+        if (response.mode === "api") {
+          skillsShCacheExpiresAtRef.current =
+            response.cacheMaxAgeSeconds !== undefined
+              ? Date.now() + response.cacheMaxAgeSeconds * 1000
+              : undefined;
+          return dedupeRegistrySkills(response.skills);
         }
-      },
-    );
 
-    return dedupeRegistrySkills(skillsFromDetails);
-  }, []);
+        setSkillsShFallbackNotice(
+          response.retryAfterSeconds
+            ? t("skill.skillsShFallbackRetryAfter", {
+                seconds: response.retryAfterSeconds,
+                defaultValue:
+                  "skills.sh API is rate limited. Showing degraded results; retry after {{seconds}} seconds.",
+              })
+            : t("skill.skillsShFallbackMode", {
+                reason: response.fallbackReason || "API unavailable",
+                defaultValue:
+                  "skills.sh API is unavailable. Showing degraded results from the public catalog. Some details, audits, or files may be missing.",
+              }),
+        );
+      }
+    } catch (error) {
+      console.warn("skills.sh API load failed, falling back to public catalog:", error);
+      setSkillsShFallbackNotice(
+        t(
+          "skill.skillsShFallbackMode",
+          "skills.sh API is unavailable. Showing degraded results from the public catalog. Some details, audits, or files may be missing.",
+        ),
+      );
+    }
+
+    return loadSkillsShHtmlFallback();
+  }, [
+    loadSkillsShHtmlFallback,
+    showHiddenSkillsShItems,
+    skillsShApiKey,
+    skillsShView,
+    storeSearchQuery,
+    t,
+  ]);
 
   const loadStoreSource = useCallback(
     async (sourceId: string, forceRefresh = false) => {
@@ -662,14 +751,17 @@ export function SkillStore() {
       }
 
       const cachedEntry = remoteStoreEntriesRef.current[sourceId];
-      // Cache is permanent — only bypass when user explicitly requests a refresh.
-      // A cached entry with skills is always considered fresh.
+      const cacheExpired =
+        cachedEntry?.expiresAt !== undefined &&
+        cachedEntry.expiresAt <= Date.now();
+      // Most store caches are reused until manual refresh. The skills.sh API can
+      // provide Cache-Control, so that source may expire automatically.
       const hasCachedSkills = cachedEntry && cachedEntry.skills.length > 0;
       const hasCachedFailure = Boolean(cachedEntry?.error);
       // Failed loads should not auto-retry on every rerender.
       // They may be retried via manual refresh or scheduled force refresh.
       if (!forceRefresh && hasCachedFailure) return;
-      if (!forceRefresh && hasCachedSkills) return;
+      if (!forceRefresh && hasCachedSkills && !cacheExpired) return;
 
       const loadPromise = (async () => {
         setLoadingSourceId(sourceId);
@@ -702,6 +794,10 @@ export function SkillStore() {
 
           setRemoteStoreEntry(sourceId, {
             loadedAt: Date.now(),
+            expiresAt:
+              source.type === "skills-sh"
+                ? skillsShCacheExpiresAtRef.current
+                : undefined,
             error: partialFailureMessage,
             skills: skillsForSource,
           });
@@ -744,6 +840,21 @@ export function SkillStore() {
     if (!isSelectedSourceRemote) return;
     void loadStoreSource(selectedStoreSourceId);
   }, [isSelectedSourceRemote, loadStoreSource, selectedStoreSourceId]);
+
+  useEffect(() => {
+    if (selectedStoreSourceId !== "community") return;
+    const timeoutId = window.setTimeout(() => {
+      void loadStoreSource("community", true);
+    }, 350);
+    return () => window.clearTimeout(timeoutId);
+  }, [
+    loadStoreSource,
+    selectedStoreSourceId,
+    showHiddenSkillsShItems,
+    skillsShApiKey,
+    skillsShView,
+    storeSearchQuery,
+  ]);
 
   useEffect(() => {
     if (typeof window === "undefined") {
@@ -825,7 +936,9 @@ export function SkillStore() {
       );
     }
 
-    if (storeSearchQuery.trim()) {
+    const usesRemoteCommunitySearch =
+      selectedStoreSourceId === "community" && storeSearchQuery.trim().length >= 2;
+    if (storeSearchQuery.trim() && !usesRemoteCommunitySearch) {
       const query = storeSearchQuery.toLowerCase();
       baseSkills = baseSkills.filter(
         (skill) =>
@@ -856,6 +969,9 @@ export function SkillStore() {
   const isSkillInstalled = useCallback(
     (regSkill: RegistrySkill): boolean => {
       if (installedSlugs.includes(regSkill.slug)) return true;
+      if (regSkill.source_id && installedSlugs.includes(regSkill.source_id)) {
+        return true;
+      }
       // Fall back to name-based matching for locally-imported skills
       // that have no registry_slug
       const installName = (
@@ -895,10 +1011,21 @@ export function SkillStore() {
     e.stopPropagation();
     setInstallingSlug(skill.slug);
     try {
+      if (hasHighRiskStoreAudit(skill)) {
+        selectRegistrySkill(skill.slug);
+        showToast(
+          t(
+            "skill.skillsShAuditReviewRequired",
+            "skills.sh audit flagged this skill. Open the detail view to review and confirm before importing.",
+          ),
+          "warning",
+        );
+        return;
+      }
       if (autoScanBeforeInstall) {
         const report = await window.api.skill.scanSafety({
           name: skill.name,
-          content: skill.content,
+          content: buildStoreSkillSafetyContent(skill),
           sourceUrl: skill.source_url,
           contentUrl: skill.content_url,
           securityAudits: skill.security_audits,
@@ -1118,6 +1245,25 @@ export function SkillStore() {
       <div className="px-6 py-3 border-b border-border bg-background/30 space-y-3">
         {sourceMeta.showCatalog && (
           <div className="flex items-center gap-1 overflow-x-auto scrollbar-hide">
+            {selectedStoreSourceId === "community" &&
+              ([
+                ["trending", t("skill.skillsShViewTrending", "Trending")],
+                ["all-time", t("skill.skillsShViewAllTime", "All-time")],
+                ["hot", t("skill.skillsShViewHot", "Hot")],
+                ["curated", t("skill.skillsShViewCurated", "Official")],
+              ] as Array<[SkillsShCatalogView, string]>).map(([view, label]) => (
+                <button
+                  key={view}
+                  onClick={() => setSkillsShView(view)}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors whitespace-nowrap ${
+                    skillsShView === view
+                      ? "bg-primary text-white shadow-sm"
+                      : "bg-muted hover:bg-muted/80 text-muted-foreground"
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
             {categories.map((cat) => (
               <button
                 key={cat.key}
@@ -1132,6 +1278,30 @@ export function SkillStore() {
                 {cat.label}
               </button>
             ))}
+            {selectedStoreSourceId === "community" && (
+              <button
+                onClick={() => setShowHiddenSkillsShItems((value) => !value)}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors whitespace-nowrap ${
+                  showHiddenSkillsShItems
+                    ? "bg-primary text-white shadow-sm"
+                    : "bg-muted hover:bg-muted/80 text-muted-foreground"
+                }`}
+              >
+                {t("skill.skillsShShowHidden", "Show filtered")}
+              </button>
+            )}
+          </div>
+        )}
+
+        {selectedStoreSourceId === "community" && (
+          <div className="inline-flex items-center gap-2 text-[11px] text-muted-foreground">
+            <InfoIcon className="w-3.5 h-3.5" />
+            <span>
+              {t(
+                "skill.skillsShPrivacyHint",
+                "Searches in this source are sent to skills.sh. PromptHub does not save search terms.",
+              )}
+            </span>
           </div>
         )}
 
@@ -1197,6 +1367,20 @@ export function SkillStore() {
             </button>
           </div>
         )}
+
+        {selectedStoreSourceId === "community" &&
+          skillsShFallbackNotice &&
+          !shouldShowInitialLoading && (
+            <div className="rounded-2xl border border-amber-500/30 bg-amber-500/10 p-4 text-sm text-amber-700 dark:text-amber-300 space-y-2">
+              <div>{skillsShFallbackNotice}</div>
+              <div className="text-xs">
+                {t(
+                  "skill.skillsShApiKeyCta",
+                  "Add a skills.sh API Key in Settings > Skill to enable full metadata, file snapshots, and audits.",
+                )}
+              </div>
+            </div>
+          )}
 
         {sourceMeta.showCatalog && (
           <>

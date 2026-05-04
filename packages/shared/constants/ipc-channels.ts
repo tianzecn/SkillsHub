@@ -86,6 +86,7 @@ export const IPC_CHANNELS = {
   SKILL_GET_MD_INSTALL_STATUS: "skill:getMdInstallStatus",
   SKILL_GET_MD_INSTALL_STATUS_BATCH: "skill:getMdInstallStatusBatch",
   SKILL_INSTALL_MD_SYMLINK: "skill:installMdSymlink",
+  SKILL_LOAD_SKILLS_SH_STORE: "skill:loadSkillsShStore",
   SKILL_FETCH_REMOTE_CONTENT: "skill:fetchRemoteContent",
   SKILL_FETCH_GITHUB_TARBALL: "skill:fetchGithubTarball",
   SKILL_CLONE_GITHUB_DIRECTORY: "skill:cloneGithubDirectory",

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  mapSkillsShEntryToRegistrySkill,
   parseSkillsShDetail,
   parseSkillsShLeaderboard,
 } from "../../../src/renderer/services/skills-sh-store";
@@ -44,6 +45,56 @@ describe("skills-sh-store", () => {
         weeklyInstalls: "193.2K",
       }),
     ]);
+  });
+
+  it("parses embedded catalog data from the skills.sh homepage", () => {
+    const html = `
+      <script>
+        self.__next_f.push([1,"{\\"source\\":\\"supabase/agent-skills\\",\\"skillId\\":\\"supabase-postgres-best-practices\\",\\"name\\":\\"supabase-postgres-best-practices\\",\\"installs\\":140695}"])
+        self.__next_f.push([1,"{\\"source\\":\\"neondatabase/agent-skills\\",\\"skillId\\":\\"neon-postgres\\",\\"name\\":\\"neon-postgres\\",\\"installs\\":30489}"])
+      </script>
+    `;
+
+    const entries = parseSkillsShLeaderboard(html, { limit: 10 });
+
+    expect(entries).toEqual([
+      expect.objectContaining({
+        owner: "supabase",
+        repo: "agent-skills",
+        skillName: "supabase-postgres-best-practices",
+        detailPath:
+          "/supabase/agent-skills/supabase-postgres-best-practices",
+        weeklyInstalls: "140.7K",
+      }),
+      expect.objectContaining({
+        owner: "neondatabase",
+        repo: "agent-skills",
+        skillName: "neon-postgres",
+        weeklyInstalls: "30.5K",
+      }),
+    ]);
+  });
+
+  it("maps homepage entries into lightweight installable registry records", () => {
+    const skill = mapSkillsShEntryToRegistrySkill({
+      owner: "context7.com",
+      repo: "",
+      skillName: "docs",
+      detailPath: "/context7.com/docs",
+      detailUrl: "https://skills.sh/context7.com/docs",
+      weeklyInstalls: "12.3K",
+    });
+
+    expect(skill).toEqual(
+      expect.objectContaining({
+        slug: "context7-com-docs",
+        source_id: "context7.com/docs",
+        source_type: "html",
+        source_url: "https://context7.com",
+        store_url: "https://skills.sh/context7.com/docs",
+        content: "",
+      }),
+    );
   });
 
   it("maps detail page content into a registry skill", () => {

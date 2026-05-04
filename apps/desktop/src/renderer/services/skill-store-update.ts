@@ -93,15 +93,20 @@ export function findInstalledRegistrySkill(
   registrySkill: RegistrySkill,
 ): Skill | null {
   const slug = registrySkill.slug.toLowerCase();
+  const sourceId = registrySkill.source_id?.toLowerCase();
   const contentUrl = registrySkill.content_url?.toLowerCase();
   const sourceUrl = registrySkill.source_url?.toLowerCase();
   const installName = (registrySkill.install_name || registrySkill.slug).toLowerCase();
 
   return (
     skills.find((skill) => skill.registry_slug?.toLowerCase() === slug) ||
+    (sourceId
+      ? skills.find((skill) => skill.registry_slug?.toLowerCase() === sourceId)
+      : undefined) ||
     (contentUrl
       ? skills.find((skill) => skill.content_url?.toLowerCase() === contentUrl)
       : undefined) ||
+    skills.find((skill) => skill.name.toLowerCase() === installName) ||
     (sourceUrl
       ? skills.find(
           (skill) =>
@@ -118,7 +123,8 @@ export async function getRegistrySkillUpdateStatus(
   registrySkill: RegistrySkill,
   remoteContent = registrySkill.content,
 ): Promise<RegistrySkillUpdateCheck> {
-  const remoteHash = await computeSkillContentHash(remoteContent);
+  const remoteHash =
+    registrySkill.remote_hash || (await computeSkillContentHash(remoteContent));
   if (!installedSkill) {
     return {
       status: "not-installed",
@@ -133,7 +139,10 @@ export async function getRegistrySkillUpdateStatus(
   const localContent = installedSkill.content ?? installedSkill.instructions ?? "";
   const localHash = await computeSkillContentHash(localContent);
   const installedHash = installedSkill.installed_content_hash;
-  const localModified = Boolean(installedHash && localHash !== installedHash);
+  const usesRegistryHash = Boolean(registrySkill.remote_hash && installedHash);
+  const localModified = Boolean(
+    installedHash && !usesRegistryHash && localHash !== installedHash,
+  );
   const remoteChanged = installedHash
     ? remoteHash !== installedHash
     : remoteHash !== localHash || registrySkill.version !== installedSkill.version;

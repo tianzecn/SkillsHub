@@ -34,6 +34,10 @@ import {
   getRegistrySkillUpdateStatus,
   type RegistrySkillUpdateCheck,
 } from "../services/skill-store-update";
+import {
+  parseSkillsShDetail,
+  type SkillsShLeaderboardEntry,
+} from "../services/skills-sh-store";
 import { useSettingsStore } from "./settings.store";
 
 export type SkillFilterType =
@@ -244,6 +248,45 @@ function parseGitHubSkillLocation(
   return null;
 }
 
+function registrySkillToSkillsShEntry(
+  skill: RegistrySkill,
+): SkillsShLeaderboardEntry | null {
+  if (!skill.store_url) {
+    return null;
+  }
+
+  try {
+    const parsed = new URL(skill.store_url);
+    if (parsed.hostname.toLowerCase() !== "skills.sh") {
+      return null;
+    }
+
+    const parts = parsed.pathname.split("/").filter(Boolean);
+    if (parts.length < 2) {
+      return null;
+    }
+
+    const skillName = parts[parts.length - 1];
+    const owner = parts[0];
+    const repo = parts.length > 2 ? parts.slice(1, -1).join("/") : "";
+    if (!owner || !skillName) {
+      return null;
+    }
+
+    const detailPath = `/${parts.join("/")}`;
+    return {
+      owner,
+      repo,
+      skillName,
+      detailPath,
+      detailUrl: parsed.toString(),
+      weeklyInstalls: skill.weekly_installs,
+    };
+  } catch {
+    return null;
+  }
+}
+
 async function fetchRemoteContentWithRetry(
   url: string,
   options: { retries?: number; initialDelayMs?: number } = {},
@@ -417,6 +460,21 @@ async function syncRemoteGitHubSkillRepo(
   );
 }
 
+async function syncRegistrySkillFiles(
+  skillId: string,
+  files?: Array<{ relativePath: string; content: string }>,
+): Promise<void> {
+  if (!files || files.length === 0) return;
+
+  await runWithConcurrency(files, REMOTE_REPO_SYNC_CONCURRENCY, async (file) => {
+    const relativePath = file.relativePath;
+    if (!relativePath || !shouldSyncRemoteRepoFile(relativePath)) return;
+    await window.api.skill.writeLocalFile(skillId, relativePath, file.content, {
+      skipVersionSnapshot: true,
+    });
+  });
+}
+
 async function runWithConcurrency<T>(
   items: T[],
   limit: number,
@@ -481,6 +539,7 @@ interface SkillState {
     string,
     {
       loadedAt: number;
+      expiresAt?: number;
       error?: string | null;
       skills: RegistrySkill[];
     }
@@ -566,7 +625,12 @@ interface SkillState {
   toggleCustomStoreSource: (id: string) => void;
   setRemoteStoreEntry: (
     sourceId: string,
-    entry: { loadedAt: number; error?: string | null; skills: RegistrySkill[] },
+    entry: {
+      loadedAt: number;
+      expiresAt?: number;
+      error?: string | null;
+      skills: RegistrySkill[];
+    },
   ) => void;
   getInstalledSlugs: () => string[];
   getRecommendedSkills: () => RegistrySkill[];
@@ -1189,19 +1253,58 @@ export const useSkillStore = create<SkillState>()(
         if (!updatedSkill) {
           return null;
         }
+        await syncRegistrySkillFiles(installedSkill.id, regSkill.files);
         return { status: "updated", skill: updatedSkill, check };
       },
 
       installRegistrySkill: async (regSkill) => {
         try {
-          let effectiveContent = regSkill.content;
+          let installSkill = regSkill;
+          let effectiveContent =
+            regSkill.files?.find(
+              (file) => file.relativePath.toLowerCase() === "skill.md",
+            )?.content || regSkill.content;
+
+          if (
+            !hasMeaningfulSkillBody(effectiveContent) &&
+            regSkill.source_type === "html"
+          ) {
+            const entry = registrySkillToSkillsShEntry(regSkill);
+            if (entry) {
+              try {
+                const detailHtml = await fetchRemoteContentWithRetry(
+                  entry.detailUrl,
+                );
+                const detailSkill = parseSkillsShDetail(detailHtml, entry);
+                if (detailSkill) {
+                  installSkill = {
+                    ...regSkill,
+                    ...detailSkill,
+                    slug: regSkill.slug,
+                    source_id: regSkill.source_id ?? detailSkill.source_id,
+                    source_type: regSkill.source_type,
+                    store_url: regSkill.store_url ?? detailSkill.store_url,
+                    weekly_installs:
+                      regSkill.weekly_installs ?? detailSkill.weekly_installs,
+                  };
+                  effectiveContent = detailSkill.content || effectiveContent;
+                }
+              } catch (fetchError) {
+                console.warn(
+                  `Failed to fetch skills.sh detail page for "${regSkill.slug}", falling back to cached metadata:`,
+                  fetchError,
+                );
+              }
+            }
+          }
+
           const location = parseGitHubSkillLocation(
-            regSkill.source_url,
-            regSkill.content_url,
+            installSkill.source_url,
+            installSkill.content_url,
           );
           let tarballFiles: Array<{ path: string; content: string }> | null = null;
 
-          if (location) {
+          if (location && !installSkill.files?.length) {
             const skillPath = location.directoryPath
               ? `${location.directoryPath}/SKILL.md`
               : "SKILL.md";
@@ -1220,7 +1323,7 @@ export const useSkillStore = create<SkillState>()(
               }
             } catch (fetchError) {
               console.warn(
-                `Failed to fetch GitHub tarball for "${regSkill.slug}", falling back to git clone/raw SKILL.md content:`,
+                `Failed to fetch GitHub tarball for "${installSkill.slug}", falling back to git clone/raw SKILL.md content:`,
                 fetchError,
               );
               try {
@@ -1239,7 +1342,7 @@ export const useSkillStore = create<SkillState>()(
                 }
               } catch (cloneError) {
                 console.warn(
-                  `Failed to clone GitHub directory for "${regSkill.slug}", falling back to cached/raw SKILL.md content:`,
+                  `Failed to clone GitHub directory for "${installSkill.slug}", falling back to cached/raw SKILL.md content:`,
                   cloneError,
                 );
               }
@@ -1248,18 +1351,18 @@ export const useSkillStore = create<SkillState>()(
 
           if (
             !hasMeaningfulSkillBody(effectiveContent) &&
-            regSkill.content_url
+            installSkill.content_url
           ) {
             try {
               const freshContent = await fetchRemoteContentWithRetry(
-                regSkill.content_url,
+                installSkill.content_url,
               );
               if (freshContent.trim()) {
                 effectiveContent = freshContent;
               }
             } catch (fetchError) {
               console.warn(
-                `Failed to fetch fresh SKILL.md for "${regSkill.slug}", falling back to cached registry content:`,
+                `Failed to fetch fresh SKILL.md for "${installSkill.slug}", falling back to cached registry content:`,
                 fetchError,
               );
             }
@@ -1267,36 +1370,38 @@ export const useSkillStore = create<SkillState>()(
 
           if (!hasMeaningfulSkillBody(effectiveContent)) {
             throw new Error(
-              `Unable to fetch the full SKILL.md for "${regSkill.name}". The registry only has summary metadata right now, so installation was blocked to avoid creating an incomplete skill.`,
+              `Unable to fetch the full SKILL.md for "${installSkill.name}". The registry only has summary metadata right now, so installation was blocked to avoid creating an incomplete skill.`,
             );
           }
 
-          const installedHash = await computeSkillContentHash(effectiveContent);
+          const installedHash =
+            installSkill.remote_hash ||
+            (await computeSkillContentHash(effectiveContent));
           const installedAt = Date.now();
           const newSkill = await window.api.skill.create({
-            name: regSkill.install_name || regSkill.slug,
-            description: regSkill.description,
+            name: installSkill.install_name || installSkill.slug,
+            description: installSkill.description,
             instructions: effectiveContent,
             content: effectiveContent,
             protocol_type: "skill",
-            version: regSkill.version,
-            author: regSkill.author,
-            source_url: regSkill.source_url,
+            version: installSkill.version,
+            author: installSkill.author,
+            source_url: installSkill.source_url,
             tags: [],
-            original_tags: regSkill.tags,
+            original_tags: installSkill.tags,
             is_favorite: false,
-            icon_url: regSkill.icon_url,
-            icon_emoji: regSkill.icon_emoji,
-            category: regSkill.category,
+            icon_url: installSkill.icon_url,
+            icon_emoji: installSkill.icon_emoji,
+            category: installSkill.category,
             is_builtin: true,
-            registry_slug: regSkill.slug,
-            content_url: regSkill.content_url,
+            registry_slug: installSkill.slug,
+            content_url: installSkill.content_url,
             installed_content_hash: installedHash,
-            installed_version: regSkill.version,
+            installed_version: installSkill.version,
             installed_at: installedAt,
             updated_from_store_at: installedAt,
-            prerequisites: regSkill.prerequisites,
-            compatibility: regSkill.compatibility,
+            prerequisites: installSkill.prerequisites,
+            compatibility: installSkill.compatibility,
           });
           if (newSkill) {
             try {
@@ -1305,15 +1410,19 @@ export const useSkillStore = create<SkillState>()(
                 "SKILL.md",
                 effectiveContent,
               );
-              await syncRemoteGitHubSkillRepo(
-                newSkill.id,
-                regSkill.source_url,
-                regSkill.content_url,
-                tarballFiles,
-              );
+              if (installSkill.files?.length) {
+                await syncRegistrySkillFiles(newSkill.id, installSkill.files);
+              } else {
+                await syncRemoteGitHubSkillRepo(
+                  newSkill.id,
+                  installSkill.source_url,
+                  installSkill.content_url,
+                  tarballFiles,
+                );
+              }
             } catch (repoError) {
               console.warn(
-                `Failed to create local repo for registry skill "${regSkill.slug}":`,
+                `Failed to create local repo for registry skill "${installSkill.slug}":`,
                 repoError,
               );
             }
@@ -1335,7 +1444,15 @@ export const useSkillStore = create<SkillState>()(
 
       uninstallRegistrySkill: async (slug) => {
         const { skills, loadSkills } = get();
-        const skill = skills.find((s) => s.registry_slug === slug);
+        const registrySkill = getRegistrySkillCandidates(get()).find(
+          (candidate) => candidate.slug === slug,
+        );
+        const skill = skills.find(
+          (s) =>
+            s.registry_slug === slug ||
+            (registrySkill?.source_id &&
+              s.registry_slug === registrySkill.source_id),
+        );
         if (!skill) return false;
 
         try {

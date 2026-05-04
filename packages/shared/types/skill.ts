@@ -171,6 +171,8 @@ export interface MarketplaceRegistryDocument {
  */
 export interface RegistrySkill {
   slug: string;
+  source_id?: string;
+  source_type?: "github" | "well-known" | "marketplace-json" | "git-repo" | "local-dir" | "html";
   name: string;
   install_name?: string;
   description: string;
@@ -181,16 +183,60 @@ export interface RegistrySkill {
   author: string;
   source_url: string;
   store_url?: string;
+  install_url?: string;
   tags: string[];
   version: string;
   content: string; // Embedded SKILL.md content
   content_url?: string; // Remote SKILL.md URL (for updates)
+  files?: SkillFileSnapshot[];
+  remote_hash?: string | null;
+  is_duplicate?: boolean;
   prerequisites?: string[];
   compatibility?: string[];
   weekly_installs?: string;
   github_stars?: string;
   installed_on?: string[];
   security_audits?: string[];
+  audit_results?: SkillStoreAuditResult[];
+}
+
+export type SkillStoreAuditStatus = "pass" | "warn" | "fail" | string;
+
+export interface SkillStoreAuditResult {
+  provider: string;
+  slug: string;
+  status: SkillStoreAuditStatus;
+  summary: string;
+  auditedAt: string;
+  riskLevel?: "NONE" | "LOW" | "MEDIUM" | "HIGH" | "CRITICAL" | string;
+  categories?: string[];
+}
+
+export type SkillsShCatalogView = "trending" | "all-time" | "hot" | "curated";
+
+export interface SkillsShStoreRequest {
+  apiKey?: string;
+  view?: SkillsShCatalogView;
+  query?: string;
+  limit?: number;
+  includeDuplicates?: boolean;
+  includeIncomplete?: boolean;
+}
+
+export interface SkillsShRateLimitInfo {
+  limit?: number;
+  remaining?: number;
+  reset?: number;
+}
+
+export interface SkillsShStoreResponse {
+  skills: RegistrySkill[];
+  mode: "api" | "fallback";
+  source: "api-v1" | "legacy-search" | "html";
+  fallbackReason?: string;
+  retryAfterSeconds?: number;
+  rateLimit?: SkillsShRateLimitInfo;
+  cacheMaxAgeSeconds?: number;
 }
 
 export interface SkillStoreSource {

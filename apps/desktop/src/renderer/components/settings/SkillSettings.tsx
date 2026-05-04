@@ -13,7 +13,7 @@ import { SKILL_PLATFORMS } from "@prompthub/shared/constants/platforms";
 import { useSettingsStore } from "../../stores/settings.store";
 import { useSkillStore } from "../../stores/skill.store";
 import { PlatformIcon } from "../ui/PlatformIcon";
-import { SettingSection } from "./shared";
+import { PasswordInput, SettingSection } from "./shared";
 import { useToast } from "../ui/Toast";
 import { getSafetyScanAIConfig } from "../skill/detail-utils";
 import { isWebRuntime } from "../../runtime";
@@ -170,6 +170,32 @@ export function SkillSettings({ onNavigate }: SkillSettingsProps) {
               </p>
             </button>
           </div>
+        </div>
+      </SettingSection>
+
+      <SettingSection
+        title={t("settings.skillsShCommunitySource", "skills.sh Community Source")}
+      >
+        <div className="p-4 space-y-3">
+          <div>
+            <label className="block text-sm font-semibold mb-2">
+              {t("settings.skillsShApiKey", "skills.sh API Key")}
+            </label>
+            <PasswordInput
+              value={settings.skillsShApiKey || ""}
+              onChange={settings.setSkillsShApiKey}
+              placeholder={t(
+                "settings.skillsShApiKeyPlaceholder",
+                "Optional API key, e.g. sk_live_...",
+              )}
+            />
+          </div>
+          <p className="text-xs text-muted-foreground leading-relaxed">
+            {t(
+              "settings.skillsShApiKeyDesc",
+              "Optional. Used only when loading the built-in skills.sh community source. It is stored with your local PromptHub settings, the same way local model API keys are stored.",
+            )}
+          </p>
         </div>
       </SettingSection>
 

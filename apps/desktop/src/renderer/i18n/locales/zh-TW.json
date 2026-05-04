@@ -832,7 +832,11 @@
     "previewChannel": "預覽版通道",
     "joinPreviewChannel": "加入預覽版本",
     "joinPreviewChannelDesc": "只有加入後，檢查更新才會包含 GitHub Releases 裡的預覽版 / prerelease。",
-    "previewChannelWarning": "預覽版可能不穩定，建議先備份資料，主要用於協助測試新修復。"
+    "previewChannelWarning": "預覽版可能不穩定，建議先備份資料，主要用於協助測試新修復。",
+    "skillsShCommunitySource": "skills.sh 社群來源",
+    "skillsShApiKey": "skills.sh API Key",
+    "skillsShApiKeyPlaceholder": "可選 API Key，例如 sk_live_...",
+    "skillsShApiKeyDesc": "可選。僅在載入內建 skills.sh 社群來源時使用。它會和本機模型 API Key 一樣，儲存在你的本機 PromptHub 設定中。"
   },
   "import": {
     "clipboardTitle": "從剪貼簿匯入 Prompt",
@@ -1392,7 +1396,20 @@
     "checkUpdate": "檢查更新",
     "updating": "更新中...",
     "update": "更新",
-    "overwriteLocalChanges": "覆蓋本機修改"
+    "overwriteLocalChanges": "覆蓋本機修改",
+    "skillsShViewTrending": "趨勢",
+    "skillsShViewAllTime": "總榜",
+    "skillsShViewHot": "熱門",
+    "skillsShViewCurated": "官方精選",
+    "skillsShShowHidden": "顯示已過濾",
+    "skillsShPrivacyHint": "此來源的搜尋會請求 skills.sh。PromptHub 不會儲存搜尋詞。",
+    "skillsShFallbackRetryAfter": "skills.sh API 目前限流，正在顯示降級結果；請在 {{seconds}} 秒後重試。",
+    "skillsShFallbackMode": "skills.sh API 目前不可用，正在顯示公開目錄的降級結果。部分詳情、審計或檔案可能缺失。",
+    "skillsShApiKeyCta": "在 設定 > Skill 中新增 skills.sh API Key，可啟用完整中繼資料、檔案快照和審計。",
+    "skillsShAuditReviewRequired": "skills.sh 審計標記了此 skill。請開啟詳情頁查看並確認後再匯入。",
+    "skillsShAudits": "skills.sh 審計",
+    "skillsShAuditHighRiskTitle": "skills.sh 審計提醒",
+    "skillsShAuditHighRiskMessage": "一個或多個 skills.sh 審計夥伴標記了此 skill。匯入前請先查看發現項。"
   },
   "error": {
     "sha512Desc": "SHA512 校验失败。\n这通常是由于 CDN 缓存不一致或网络劫持导致的。\n文件可能已下载完成，您可以尝试手动安装。"

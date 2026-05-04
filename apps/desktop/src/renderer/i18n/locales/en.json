@@ -841,7 +841,11 @@
     "previewChannel": "Preview channel",
     "joinPreviewChannel": "Join Preview Channel",
     "joinPreviewChannelDesc": "Only after joining, update checks will include prerelease preview builds from GitHub Releases.",
-    "previewChannelWarning": "Preview builds may be unstable. Please back up your data before updating and use them mainly for testing new fixes."
+    "previewChannelWarning": "Preview builds may be unstable. Please back up your data before updating and use them mainly for testing new fixes.",
+    "skillsShCommunitySource": "skills.sh Community Source",
+    "skillsShApiKey": "skills.sh API Key",
+    "skillsShApiKeyPlaceholder": "Optional API key, e.g. sk_live_...",
+    "skillsShApiKeyDesc": "Optional. Used only when loading the built-in skills.sh community source. It is stored with your local PromptHub settings, the same way local model API keys are stored."
   },
   "import": {
     "clipboardTitle": "Import Prompt from Clipboard",
@@ -1403,7 +1407,20 @@
     "checkUpdate": "Check update",
     "updating": "Updating...",
     "update": "Update",
-    "overwriteLocalChanges": "Overwrite local changes"
+    "overwriteLocalChanges": "Overwrite local changes",
+    "skillsShViewTrending": "Trending",
+    "skillsShViewAllTime": "All-time",
+    "skillsShViewHot": "Hot",
+    "skillsShViewCurated": "Official",
+    "skillsShShowHidden": "Show filtered",
+    "skillsShPrivacyHint": "Searches in this source are sent to skills.sh. PromptHub does not save search terms.",
+    "skillsShFallbackRetryAfter": "skills.sh API is rate limited. Showing degraded results; retry after {{seconds}} seconds.",
+    "skillsShFallbackMode": "skills.sh API is unavailable. Showing degraded results from the public catalog. Some details, audits, or files may be missing.",
+    "skillsShApiKeyCta": "Add a skills.sh API Key in Settings > Skill to enable full metadata, file snapshots, and audits.",
+    "skillsShAuditReviewRequired": "skills.sh audit flagged this skill. Open the detail view to review and confirm before importing.",
+    "skillsShAudits": "skills.sh Audits",
+    "skillsShAuditHighRiskTitle": "skills.sh Audit Warning",
+    "skillsShAuditHighRiskMessage": "One or more skills.sh audit partners flagged this skill. Review the findings before importing."
   },
   "error": {
     "sha512Desc": "SHA512 checksum mismatch.\nThis is usually caused by CDN cache inconsistencies or network issues.\nThe file may have been downloaded successfully. You can try to install it manually."

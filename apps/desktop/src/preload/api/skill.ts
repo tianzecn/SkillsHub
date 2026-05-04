@@ -9,6 +9,8 @@ import type {
   SkillLocalFileEntry,
   SkillLocalFileTreeEntry,
   SkillMCPConfig,
+  SkillsShStoreRequest,
+  SkillsShStoreResponse,
   SkillVersion,
   UpdateSkillParams,
 } from "@prompthub/shared/types";
@@ -87,6 +89,10 @@ export const skillApi = {
       skillMdContent,
       platformId,
     ),
+  loadSkillsShStore: (
+    options?: SkillsShStoreRequest,
+  ): Promise<SkillsShStoreResponse> =>
+    ipcRenderer.invoke(IPC_CHANNELS.SKILL_LOAD_SKILLS_SH_STORE, options),
   fetchRemoteContent: (url: string) =>
     ipcRenderer.invoke(IPC_CHANNELS.SKILL_FETCH_REMOTE_CONTENT, url),
   fetchGithubTarball: (
