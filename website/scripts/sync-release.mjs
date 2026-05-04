@@ -54,7 +54,7 @@ export const RELEASE_DOWNLOAD_URLS = {
   linuxAppImage:
     "https://github.com/tianzecn/SkillsHub/releases/latest/download/PromptHub-${version}-x64.AppImage",
   linuxDeb:
-    "https://github.com/tianzecn/SkillsHub/releases/latest/download/prompthub_${version}_amd64.deb",
+    "https://github.com/tianzecn/SkillsHub/releases/latest/download/PromptHub-${version}-amd64.deb",
 } as const;
 `;
 

@@ -1,5 +1,21 @@
 ## [Unreleased]
 
+## [0.5.7] - 2026-05-04
+
+### 新增 / Added
+
+- 🧩 **SkillsHub 远程商店接入**：桌面端 Skill 商店新增 API-backed 的 skills.sh / SkillsHub 社区源，支持 Trending / 搜索 / 官方精选列表、安装量与来源信息展示、详情页文件读取，并在 API 不可用时回退到既有 HTML 解析路径
+  - **SkillsHub Remote Store Integration**: The desktop Skill Store now includes an API-backed skills.sh / SkillsHub community source with Trending, search, official curated lists, install/source metadata, detail file loading, and fallback to the existing HTML parser when the API is unavailable
+- 🔑 **社区源 API Key 设置**：Skill 设置页新增可选的 masked skills.sh API Key，用于提高社区源请求额度；未配置时仍可按匿名模式使用并显示清晰的降级/限流状态
+  - **Community Source API Key Setting**: Skill settings now include an optional masked skills.sh API key for higher community-source request limits. Anonymous usage remains supported with explicit degraded/rate-limit status messaging
+
+### 修复 / Fixed
+
+- 🛡️ **社区 Skill 安装安全边界**：新增 main-process skills.sh 服务与 typed IPC，远程请求限制在白名单端点，安装前保留安全扫描、重复项过滤、远端 hash 与本地内容 hash 对比，降低社区源安装与更新误操作风险
+  - **Community Skill Install Safety Boundary**: A dedicated main-process skills.sh service and typed IPC keep remote requests on allowlisted endpoints, while install/update flows preserve safety scanning, duplicate filtering, and remote/local content hash comparison
+- 📦 **下载链接与发布元数据修正**：官网生成的 Linux deb 下载地址改为 CI 实际产物 `PromptHub-0.5.7-amd64.deb` 命名，避免 Release 页面与下载按钮文件名不一致
+  - **Download Link and Release Metadata Fix**: Website-generated Linux deb links now match the CI artifact naming pattern `PromptHub-0.5.7-amd64.deb`, avoiding mismatches between Release assets and download buttons
+
 ## [0.5.6] - 2026-05-02
 
 ### 新增 / Added
