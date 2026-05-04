@@ -1,5 +1,12 @@
 ## [Unreleased]
 
+## [0.5.9] - 2026-05-04
+
+### 维护 / Maintenance
+
+- 🔖 **自动更新链路测试版本**：在 v0.5.8 更新检查卡住修复之后发布一个更高稳定版本，用于验证已安装客户端可以检测到新版本并进入正常更新流程
+  - **Auto Update Path Test Release**: Publishes a higher stable version after the v0.5.8 update-check stuck-state fix so installed clients can verify that update detection reaches the normal update flow
+
 ## [0.5.8] - 2026-05-04
 
 ### 修复 / Fixed
