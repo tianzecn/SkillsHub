@@ -1,5 +1,14 @@
 ## [Unreleased]
 
+## [0.5.10] - 2026-05-04
+
+### 修复 / Fixed
+
+- 🔁 **自动更新弹窗循环修复**：发现新版本后，后台自动检查不再插队打断用户正在进行的备份、下载或安装流程；弹窗打开时也不会因为 `available` 状态重复变化而重新进入“检查中”
+  - **Auto Update Dialog Loop Fix**: After a new version is found, background checks no longer interrupt the user's backup, download, or install flow. The update dialog also no longer falls back to “checking” when duplicate `available` status updates arrive.
+- 📥 **下载 / 已下载状态保持**：下载进度和已下载状态会忽略迟到的 `checking` / `available` 事件，关闭弹窗后顶部更新入口仍可重新打开已下载的更新包
+  - **Download / Downloaded State Preservation**: Download progress and downloaded states now ignore stale `checking` / `available` events, and the top-bar update entry can reopen a downloaded update after the dialog is closed.
+
 ## [0.5.9] - 2026-05-04
 
 ### 维护 / Maintenance

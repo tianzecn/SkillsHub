@@ -114,6 +114,78 @@ describe("UpdateDialog", () => {
     });
   });
 
+  it("does not start another check when opened with an available update", async () => {
+    const checkMock = vi.fn().mockResolvedValue({
+      success: true,
+      status: availableStatus,
+    });
+    installWindowMocks({
+      electron: {
+        updater: {
+          check: checkMock,
+          download: vi.fn().mockResolvedValue({ success: true }),
+          install: vi.fn().mockResolvedValue({ success: true }),
+          getVersion: vi.fn().mockResolvedValue("0.5.1"),
+          getPlatform: vi.fn().mockResolvedValue("win32"),
+          onStatus: vi.fn(() => vi.fn()),
+        },
+      },
+    });
+
+    await act(async () => {
+      await renderWithI18n(
+        <UpdateDialog
+          isOpen={true}
+          onClose={vi.fn()}
+          initialStatus={availableStatus}
+        />,
+        { language: "en" },
+      );
+    });
+
+    expect(await screen.findByText("Update Available")).toBeInTheDocument();
+    expect(checkMock).not.toHaveBeenCalled();
+  });
+
+  it("keeps the available update view when a duplicate checking event arrives", async () => {
+    let statusListener: ((status: UpdateStatus) => void) | null = null;
+    installWindowMocks({
+      electron: {
+        updater: {
+          check: vi.fn().mockResolvedValue({ success: true }),
+          download: vi.fn().mockResolvedValue({ success: true }),
+          install: vi.fn().mockResolvedValue({ success: true }),
+          getVersion: vi.fn().mockResolvedValue("0.5.1"),
+          getPlatform: vi.fn().mockResolvedValue("win32"),
+          onStatus: vi.fn((callback: (status: UpdateStatus) => void) => {
+            statusListener = callback;
+            return vi.fn();
+          }),
+        },
+      },
+    });
+
+    await act(async () => {
+      await renderWithI18n(
+        <UpdateDialog
+          isOpen={true}
+          onClose={vi.fn()}
+          initialStatus={availableStatus}
+        />,
+        { language: "en" },
+      );
+    });
+
+    expect(await screen.findByText("Update Available")).toBeInTheDocument();
+
+    await act(async () => {
+      statusListener?.({ status: "checking" });
+    });
+
+    expect(screen.getByText("Update Available")).toBeInTheDocument();
+    expect(screen.queryByText("Checking...")).not.toBeInTheDocument();
+  });
+
   it("keeps download enabled because install creates an automatic data snapshot", async () => {
     await act(async () => {
       await renderWithI18n(

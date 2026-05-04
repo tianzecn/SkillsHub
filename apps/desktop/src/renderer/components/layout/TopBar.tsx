@@ -489,24 +489,25 @@ export function TopBar({
           {/* 更新提示 */}
           {runtimeCapabilities.appUpdate &&
             updateAvailable &&
-            updateAvailable.status === "available" && (
-            <>
-              <button
-                onClick={onShowUpdateDialog}
-                className="flex items-center gap-1.5 h-8 px-3 rounded-lg border border-dashed border-primary/50 bg-primary/10 text-primary text-sm font-medium hover:bg-primary/20 transition-colors"
-                style={{ WebkitAppRegion: "no-drag" } as React.CSSProperties}
-                title={t("settings.updateAvailable")}
-              >
-                <DownloadIcon className="w-4 h-4" />
-                <span className="hidden sm:inline">
-                  {t("settings.newVersion", {
-                    version: updateAvailable.info?.version,
-                  })}
-                </span>
-              </button>
-              <div className="w-px h-5 bg-border mx-1" />
-            </>
-          )}
+            (updateAvailable.status === "available" ||
+              updateAvailable.status === "downloaded") && (
+              <>
+                <button
+                  onClick={onShowUpdateDialog}
+                  className="flex items-center gap-1.5 h-8 px-3 rounded-lg border border-dashed border-primary/50 bg-primary/10 text-primary text-sm font-medium hover:bg-primary/20 transition-colors"
+                  style={{ WebkitAppRegion: "no-drag" } as React.CSSProperties}
+                  title={t("settings.updateAvailable")}
+                >
+                  <DownloadIcon className="w-4 h-4" />
+                  <span className="hidden sm:inline">
+                    {t("settings.newVersion", {
+                      version: updateAvailable.info?.version,
+                    })}
+                  </span>
+                </button>
+                <div className="w-px h-5 bg-border mx-1" />
+              </>
+            )}
 
           {/* Split Button for New Prompt / New Skill */}
           <div

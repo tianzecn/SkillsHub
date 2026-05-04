@@ -20,6 +20,7 @@ interface BackgroundTaskState {
   isVisible: boolean;
   isOnline: boolean;
   isRunning: boolean;
+  isUserUpdateFlowActive?: boolean;
 }
 
 export function hasValidWebDAVConfig(settings: WebDAVSyncSettings): boolean {
@@ -36,7 +37,11 @@ export function shouldRunBackgroundUpdateCheck(
   state: BackgroundTaskState,
 ): boolean {
   return Boolean(
-    autoCheckUpdate && state.isVisible && state.isOnline && !state.isRunning,
+    autoCheckUpdate &&
+      state.isVisible &&
+      state.isOnline &&
+      !state.isRunning &&
+      !state.isUserUpdateFlowActive,
   );
 }
 

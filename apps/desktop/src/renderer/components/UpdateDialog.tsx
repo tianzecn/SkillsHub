@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import {
   DownloadIcon,
@@ -53,6 +53,36 @@ function isStableUpgradeState(
   return status?.status === "available" || status?.status === "downloaded";
 }
 
+function shouldKeepCurrentUpgradeStatus(
+  current: UpdateStatus | null,
+  next: UpdateStatus,
+): boolean {
+  if (!current) {
+    return false;
+  }
+
+  if (current.status === "available" && next.status === "checking") {
+    return true;
+  }
+
+  if (
+    current.status === "downloading" &&
+    (next.status === "checking" || next.status === "available")
+  ) {
+    return true;
+  }
+
+  if (
+    current.status === "downloaded" &&
+    next.status !== "downloaded" &&
+    next.status !== "error"
+  ) {
+    return true;
+  }
+
+  return false;
+}
+
 interface UpdateDialogProps {
   isOpen: boolean;
   onClose: () => void;
@@ -84,12 +114,13 @@ export function UpdateDialog({
   const [isCreatingBackup, setIsCreatingBackup] = useState(false);
   const [isInstalling, setIsInstalling] = useState(false);
   const [hasAcknowledgedBackup, setHasAcknowledgedBackup] = useState(false);
+  const wasOpenRef = useRef(false);
 
   useEffect(() => {
-    if (initialStatus) {
+    if (initialStatus && !isOpen) {
       setUpdateStatus(initialStatus);
     }
-  }, [initialStatus]);
+  }, [initialStatus, isOpen]);
 
   useEffect(() => {
     // Get current version and platform
@@ -104,7 +135,9 @@ export function UpdateDialog({
     // Listen for update status
     // 监听更新状态
     const handleStatus = (status: UpdateStatus) => {
-      setUpdateStatus(status);
+      setUpdateStatus((current) =>
+        shouldKeepCurrentUpgradeStatus(current, status) ? current : status,
+      );
     };
 
     const offUpdaterStatus = window.electron?.updater?.onStatus(handleStatus);
@@ -167,18 +200,29 @@ export function UpdateDialog({
   }, []);
 
   // When dialog opens, always force a fresh update check (no cache)
-  // 当对话框打开时，总是强制检查更新（不使用缓存）
+  // 当对话框打开时，只有没有可用的稳定状态时才自动检查更新
   useEffect(() => {
-    if (isOpen) {
-      setHasAcknowledgedBackup(false);
-      // Force check every time the dialog opens
-      // Using global mirror setting by default
-      getManualBackupStatus().then((status) => {
-        setLastManualBackupAt(status.lastManualBackupAt);
-        setLastManualBackupVersion(status.lastManualBackupVersion);
-      });
+    if (!isOpen) {
+      wasOpenRef.current = false;
+      return;
+    }
+
+    if (wasOpenRef.current) {
+      return;
+    }
+
+    wasOpenRef.current = true;
+    setHasAcknowledgedBackup(false);
+    getManualBackupStatus().then((status) => {
+      setLastManualBackupAt(status.lastManualBackupAt);
+      setLastManualBackupVersion(status.lastManualBackupVersion);
+    });
+    if (initialStatus) {
+      setUpdateStatus(initialStatus);
+    }
+    if (!isStableUpgradeState(initialStatus || null)) {
       void handleCheckUpdate(useUpdateMirror, {
-        preserveVisibleStatus: isStableUpgradeState(initialStatus),
+        preserveVisibleStatus: false,
       });
     }
   }, [initialStatus, isOpen, updateChannel, useUpdateMirror]);
@@ -210,7 +254,11 @@ export function UpdateDialog({
       // Prefer updater events, but use IPC result as a fallback when the event is missed.
       // 优先使用 updater 事件；若事件没有送达，则使用 IPC 结果兜底。
       if (result.status) {
-        setUpdateStatus(result.status);
+        setUpdateStatus((current) =>
+          shouldKeepCurrentUpgradeStatus(current, result.status!)
+            ? current
+            : result.status!,
+        );
       } else if (currentVersion) {
         setUpdateStatus({
           status: "not-available",
@@ -227,10 +275,16 @@ export function UpdateDialog({
   };
 
   const handleDownload = async () => {
-    await window.electron?.updater?.download({
+    const result = await window.electron?.updater?.download({
       useMirror,
       channel: updateChannel,
     });
+    if (result && !result.success) {
+      setUpdateStatus({
+        status: "error",
+        error: result.error || t("common.downloadFailed"),
+      });
+    }
   };
 
   const handleInstall = async () => {

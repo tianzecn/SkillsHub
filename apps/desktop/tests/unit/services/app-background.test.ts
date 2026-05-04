@@ -62,6 +62,15 @@ describe("app-background", () => {
         isRunning: false,
       }),
     ).toBe(false);
+
+    expect(
+      shouldRunBackgroundUpdateCheck(true, {
+        isVisible: true,
+        isOnline: true,
+        isRunning: false,
+        isUserUpdateFlowActive: true,
+      }),
+    ).toBe(false);
   });
 
   it("blocks WebDAV sync while hidden or already running", () => {

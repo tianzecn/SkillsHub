@@ -66,6 +66,8 @@ function App() {
   const [showImportModal, setShowImportModal] = useState(false);
   const lastClipboardChecksumRef = useRef<string>("");
   const isUpdateCheckInFlightRef = useRef(false);
+  const isUserUpdateFlowActiveRef = useRef(false);
+  const isUpdateDialogOpenRef = useRef(false);
   const isWebDAVSyncInFlightRef = useRef(false);
   const pendingStartupSyncRef = useRef(false);
   const isSelfHostedSyncInFlightRef = useRef(false);
@@ -97,6 +99,15 @@ function App() {
   const [updateAvailable, setUpdateAvailable] = useState<UpdateStatus | null>(
     null,
   );
+
+  useEffect(() => {
+    isUpdateDialogOpenRef.current = showUpdateDialog;
+    if (showUpdateDialog || updateAvailable) {
+      isUserUpdateFlowActiveRef.current = true;
+    } else {
+      isUserUpdateFlowActiveRef.current = false;
+    }
+  }, [showUpdateDialog, updateAvailable]);
 
   // Local shortcuts state
   // 局部快捷键状态
@@ -277,11 +288,28 @@ function App() {
     const handleStatus = (status: UpdateStatus) => {
       // If update available, save status for TopBar indicator (don't auto-show dialog)
       if (status.status === "available") {
+        isUserUpdateFlowActiveRef.current = true;
+        setUpdateAvailable(status);
+        if (!isUpdateDialogOpenRef.current) {
+          setInitialUpdateStatus(status);
+        }
+      } else if (status.status === "downloaded") {
+        isUserUpdateFlowActiveRef.current = true;
         setUpdateAvailable(status);
         setInitialUpdateStatus(status);
         // Do not auto-show dialog; only show after user clicks TopBar indicator
         // 不再自动弹窗，用户点击顶部栏提示后才显示
         // setShowUpdateDialog(true);
+      } else if (status.status === "downloading") {
+        isUserUpdateFlowActiveRef.current = true;
+      } else if (
+        status.status === "not-available" ||
+        status.status === "error"
+      ) {
+        setUpdateAvailable(null);
+        if (!isUpdateDialogOpenRef.current) {
+          isUserUpdateFlowActiveRef.current = false;
+        }
       }
     };
 
@@ -334,6 +362,7 @@ function App() {
           isVisible,
           isOnline,
           isRunning: isUpdateCheckInFlightRef.current,
+          isUserUpdateFlowActive: isUserUpdateFlowActiveRef.current,
         })
       ) {
         return;
@@ -364,6 +393,7 @@ function App() {
     // Listen for manual check trigger - always force a fresh check
     // 监听手动检查触发（始终强制刷新检查状态）
     const handleOpenUpdate = () => {
+      isUserUpdateFlowActiveRef.current = true;
       setInitialUpdateStatus(null);
       setUpdateAvailable(null); // Clear cached status
       setShowUpdateDialog(true);
