@@ -107,6 +107,79 @@ describe("WebDAV Service", () => {
   });
 
   describe("incrementalUpload", () => {
+    it("returns the WebDAV error when data file upload fails", async () => {
+      vi.mocked(backup.exportDatabase).mockResolvedValue({
+        version: 1,
+        exportedAt: "2026-01-01T00:00:00.000Z",
+        prompts: [],
+        folders: [],
+        versions: [],
+        images: {},
+        videos: {},
+        settings: { state: {} },
+        aiConfig: {},
+      });
+
+      const mockUpload = vi
+        .fn()
+        .mockResolvedValue({ success: false, error: "403 Forbidden" });
+
+      window.electron = {
+        ...window.electron,
+        webdav: {
+          ensureDirectory: vi.fn().mockResolvedValue({ success: true }),
+          download: vi.fn().mockResolvedValue({ success: false, notFound: true }),
+          upload: mockUpload,
+        },
+      } as any;
+
+      const result = await incrementalUpload(mockConfig);
+
+      expect(result.success).toBe(false);
+      expect(result.message).toContain("Failed to upload data file");
+      expect(result.message).toContain("上传数据文件失败");
+      expect(result.message).toContain("403 Forbidden");
+      expect(result.message).toBe(
+        "Failed to upload data file: 403 Forbidden (server rejected write access; check the WebDAV URL and write permission) / 上传数据文件失败: 403 Forbidden（服务器拒绝写入，请检查 WebDAV 地址和写入权限）",
+      );
+      expect(mockUpload).toHaveBeenCalledTimes(1);
+    });
+
+    it("stops before export when the backup directory cannot be prepared", async () => {
+      vi.mocked(backup.exportDatabase).mockResolvedValue({
+        version: 1,
+        exportedAt: "2026-01-01T00:00:00.000Z",
+        prompts: [],
+        folders: [],
+        versions: [],
+        images: {},
+        videos: {},
+        settings: { state: {} },
+        aiConfig: {},
+      });
+
+      const mockUpload = vi.fn();
+
+      window.electron = {
+        ...window.electron,
+        webdav: {
+          ensureDirectory: vi
+            .fn()
+            .mockResolvedValue({ success: false, error: "409 Conflict" }),
+          download: vi.fn(),
+          upload: mockUpload,
+        },
+      } as any;
+
+      const result = await incrementalUpload(mockConfig);
+
+      expect(result.success).toBe(false);
+      expect(result.message).toContain("Failed to prepare backup directory");
+      expect(result.message).toContain("409 Conflict");
+      expect(backup.exportDatabase).not.toHaveBeenCalled();
+      expect(mockUpload).not.toHaveBeenCalled();
+    });
+
     it("should perform incremental upload logic", async () => {
       /* @ts-ignore */
       backup.exportDatabase.mockResolvedValue({

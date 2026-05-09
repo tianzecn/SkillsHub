@@ -47,6 +47,17 @@ describe("parseGithubRepo", () => {
     });
   });
 
+  it("parses GitHub tree URLs into branch and subdirectory", () => {
+    expect(
+      parseGithubRepo("https://github.com/demo/skills/tree/main/skills/.curated"),
+    ).toMatchObject({
+      owner: "demo",
+      repo: "skills",
+      branch: "main",
+      subdir: "skills/.curated",
+    });
+  });
+
   it("returns null for non-GitHub urls", () => {
     expect(parseGithubRepo("https://gitlab.com/demo/skills")).toBeNull();
   });
@@ -225,6 +236,106 @@ describe("loadGitHubSkillRepo concurrency + retry", () => {
     expect(skills).toHaveLength(skillPaths.length);
     expect(rawFetchCount).toBe(0); // ← key invariant: zero per-file fetches
     expect(treeFetchCount).toBe(0); // ← also no tree-API call
+  });
+
+  it("loads only SKILL.md files under a GitHub tree subdirectory", async () => {
+    const routes: Record<string, string | RouteHandler> = {
+      "https://api.github.com/repos/demo/skills": repoMetaJson,
+      "https://api.github.com/repos/demo/skills/git/trees/main?recursive=1":
+        buildTreeJson([
+          "skills/bundled/SKILL.md",
+          "optional-skills/optional/SKILL.md",
+          "tests/fixtures/SKILL.md",
+        ]),
+      "https://raw.githubusercontent.com/demo/skills/main/skills/bundled/SKILL.md":
+        rawSkillBody("bundled", "Bundled skill"),
+    };
+
+    const skills = await loadGitHubSkillRepo(
+      "https://github.com/demo/skills/tree/main/skills",
+      {
+        fetchRemoteContent: buildFakeFetcher(routes),
+        registrySkills: [],
+        rateLimitMessage: "rate limited",
+      },
+    );
+
+    expect(skills).toHaveLength(1);
+    expect(skills[0]).toMatchObject({
+      slug: "bundled",
+      source_url: "https://github.com/demo/skills/tree/main/skills/bundled",
+      content_url:
+        "https://raw.githubusercontent.com/demo/skills/main/skills/bundled/SKILL.md",
+    });
+  });
+
+  it("filters tarball fast-path files to the selected subdirectory", async () => {
+    let rawFetchCount = 0;
+    let treeFetchCount = 0;
+    const fetchRemoteContent = async (url: string): Promise<string> => {
+      if (url.startsWith("https://raw.githubusercontent.com/")) {
+        rawFetchCount += 1;
+      }
+      if (url.includes("/git/trees/")) {
+        treeFetchCount += 1;
+      }
+      return buildFakeFetcher({
+        "https://api.github.com/repos/demo/skills": repoMetaJson,
+      })(url);
+    };
+
+    const fetchGithubTarball = vi.fn().mockResolvedValueOnce([
+      {
+        path: "skills/bundled/SKILL.md",
+        content: rawSkillBody("bundled", "Bundled skill"),
+      },
+      {
+        path: "optional-skills/optional/SKILL.md",
+        content: rawSkillBody("optional", "Optional skill"),
+      },
+    ]);
+
+    const skills = await loadGitHubSkillRepo(
+      "https://github.com/demo/skills/tree/main/skills",
+      {
+        fetchRemoteContent,
+        fetchGithubTarball,
+        registrySkills: [],
+        rateLimitMessage: "rate limited",
+      },
+    );
+
+    expect(fetchGithubTarball).toHaveBeenCalledWith("demo", "skills", "main");
+    expect(skills).toHaveLength(1);
+    expect(skills[0]?.slug).toBe("bundled");
+    expect(rawFetchCount).toBe(0);
+    expect(treeFetchCount).toBe(0);
+  });
+
+  it("does not fall back to the repository root README for a subdirectory source", async () => {
+    const fetchRemoteContent = vi.fn(
+      buildFakeFetcher({
+        "https://api.github.com/repos/demo/skills": repoMetaJson,
+        "https://api.github.com/repos/demo/skills/git/trees/main?recursive=1":
+          JSON.stringify({
+            tree: [{ path: "README.md", type: "blob", mode: "100644" }],
+          }),
+      }),
+    );
+
+    const skills = await loadGitHubSkillRepo(
+      "https://github.com/demo/skills/tree/main/skills",
+      {
+        fetchRemoteContent,
+        registrySkills: [],
+        rateLimitMessage: "rate limited",
+      },
+    );
+
+    expect(skills).toEqual([]);
+    expect(fetchRemoteContent).not.toHaveBeenCalledWith(
+      "https://raw.githubusercontent.com/demo/skills/main/README.md",
+    );
   });
 
   it("falls back to per-file raw fetches when tarball download fails", async () => {

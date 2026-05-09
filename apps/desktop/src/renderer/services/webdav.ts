@@ -35,6 +35,28 @@ interface WebDAVConfig {
   password: string;
 }
 
+interface WebDAVOperationResult {
+  success: boolean;
+  error?: string;
+}
+
+function formatWebDAVWriteError(error?: string): {
+  en: string;
+  zh: string;
+} {
+  const normalizedError = error || "Unknown error";
+  if (/^403\b/.test(normalizedError)) {
+    return {
+      en: `${normalizedError} (server rejected write access; check the WebDAV URL and write permission)`,
+      zh: `${normalizedError}（服务器拒绝写入，请检查 WebDAV 地址和写入权限）`,
+    };
+  }
+  return {
+    en: normalizedError,
+    zh: normalizedError,
+  };
+}
+
 export interface SyncResult {
   success: boolean;
   message: string;
@@ -278,11 +300,13 @@ async function uploadFile(
   url: string,
   config: WebDAVConfig,
   content: string,
-): Promise<boolean> {
+): Promise<WebDAVOperationResult> {
   try {
     if (window.electron?.webdav?.upload) {
       const result = await window.electron.webdav.upload(url, config, content);
-      return result.success;
+      return result.success
+        ? { success: true }
+        : { success: false, error: result.error || "Unknown error" };
     }
 
     const authHeader = "Basic " + btoa(`${config.username}:${config.password}`);
@@ -295,10 +319,19 @@ async function uploadFile(
       },
       body: content,
     });
-    return response.ok || response.status === 201 || response.status === 204;
+    if (response.ok || response.status === 201 || response.status === 204) {
+      return { success: true };
+    }
+    return {
+      success: false,
+      error: `${response.status} ${response.statusText}`,
+    };
   } catch (error) {
     console.error("Upload file failed:", error);
-    return false;
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Unknown error",
+    };
   }
 }
 
@@ -366,13 +399,22 @@ async function deleteFile(url: string, config: WebDAVConfig): Promise<boolean> {
  * Prefer main process IPC to bypass CORS
  * 优先使用主进程 IPC 绕过 CORS
  */
-async function ensureDirectory(url: string, config: WebDAVConfig) {
+async function ensureDirectory(
+  url: string,
+  config: WebDAVConfig,
+): Promise<WebDAVOperationResult> {
   try {
     // Prefer main process IPC (bypass CORS)
     // 优先使用主进程 IPC（绕过 CORS）
     if (window.electron?.webdav?.ensureDirectory) {
-      await window.electron.webdav.ensureDirectory(url, config);
-      return;
+      const result = await window.electron.webdav.ensureDirectory(url, config);
+      if (!result || result.success) {
+        return { success: true };
+      }
+      return {
+        success: false,
+        error: result.error || "Unknown error",
+      };
     }
 
     // Fallback to fetch (only effective in packaged Electron)
@@ -388,18 +430,29 @@ async function ensureDirectory(url: string, config: WebDAVConfig) {
     });
 
     if (checkRes.ok || checkRes.status === 207) {
-      return;
+      return { success: true };
     }
 
-    await fetch(url, {
+    const mkcolRes = await fetch(url, {
       method: "MKCOL",
       headers: {
         Authorization: authHeader,
         "User-Agent": "PromptHub/1.0",
       },
     });
+    if (mkcolRes.ok || mkcolRes.status === 201 || mkcolRes.status === 405) {
+      return { success: true };
+    }
+    return {
+      success: false,
+      error: `${mkcolRes.status} ${mkcolRes.statusText}`,
+    };
   } catch (e) {
     console.warn("Failed to ensure directory:", e);
+    return {
+      success: false,
+      error: e instanceof Error ? e.message : "Unknown error",
+    };
   }
 }
 
@@ -541,7 +594,13 @@ export async function uploadToWebDAV(
     };
 
     // Ensure remote directory exists
-    await ensureDirectory(config.url, config);
+    const directoryResult = await ensureDirectory(config.url, config);
+    if (!directoryResult.success) {
+      return {
+        success: false,
+        message: `Failed to prepare WebDAV directory: ${directoryResult.error} / 准备 WebDAV 目录失败: ${directoryResult.error}`,
+      };
+    }
 
     const fileUrl = `${config.url.replace(/\/$/, "")}/${BACKUP_FILENAME}`;
     let bodyString: string;
@@ -702,12 +761,33 @@ export async function incrementalUpload(
 
     // Ensure directory structure exists
     // 确保目录结构存在
-    await ensureDirectory(backupDirUrl, config);
+    const backupDirResult = await ensureDirectory(backupDirUrl, config);
+    if (!backupDirResult.success) {
+      return {
+        success: false,
+        message: `Failed to prepare backup directory: ${backupDirResult.error} / 准备备份目录失败: ${backupDirResult.error}`,
+      };
+    }
     const includeImages = options?.includeImages !== false;
 
     if (includeImages) {
-      await ensureDirectory(imagesDirUrl, config);
-      await ensureDirectory(`${backupDirUrl}/${VIDEOS_DIR}`, config);
+      const imagesDirResult = await ensureDirectory(imagesDirUrl, config);
+      if (!imagesDirResult.success) {
+        return {
+          success: false,
+          message: `Failed to prepare images directory: ${imagesDirResult.error} / 准备图片目录失败: ${imagesDirResult.error}`,
+        };
+      }
+      const videosDirResult = await ensureDirectory(
+        `${backupDirUrl}/${VIDEOS_DIR}`,
+        config,
+      );
+      if (!videosDirResult.success) {
+        return {
+          success: false,
+          message: `Failed to prepare videos directory: ${videosDirResult.error} / 准备视频目录失败: ${videosDirResult.error}`,
+        };
+      }
     }
 
     // Get full data but skip video content to save memory
@@ -769,11 +849,12 @@ export async function incrementalUpload(
     // Check if data needs update
     // 检查数据是否需要更新
     if (!remoteManifest || remoteManifest.dataHash !== dataHash) {
-      const success = await uploadFile(dataUrl, config, dataString);
-      if (!success) {
+      const uploadResult = await uploadFile(dataUrl, config, dataString);
+      if (!uploadResult.success) {
+        const error = formatWebDAVWriteError(uploadResult.error);
         return {
           success: false,
-          message: "Failed to upload data file / 上传数据文件失败",
+          message: `Failed to upload data file: ${error.en} / 上传数据文件失败: ${error.zh}`,
         };
       }
       uploadedCount++;
@@ -796,8 +877,8 @@ export async function incrementalUpload(
         // 检查图片是否需要更新
         if (!remoteImage || remoteImage.hash !== imageHash) {
           const imageUrl = `${imagesDirUrl}/${encodeURIComponent(fileName)}.base64`;
-          const success = await uploadFile(imageUrl, config, base64);
-          if (success) {
+          const uploadResult = await uploadFile(imageUrl, config, base64);
+          if (uploadResult.success) {
             imagesUploaded++;
             console.log(`📤 Uploaded image: ${fileName}`);
           }
@@ -847,8 +928,8 @@ export async function incrementalUpload(
           if (!remoteVideo || remoteVideo.hash !== videoHash) {
             const videoUrl = `${videosDirUrl}/${encodeURIComponent(fileName)}.base64`;
             // Upload immediately and release memory
-            const success = await uploadFile(videoUrl, config, base64);
-            if (success) {
+            const uploadResult = await uploadFile(videoUrl, config, base64);
+            if (uploadResult.success) {
               videosUploaded++;
               console.log(`📤 Uploaded video: ${fileName}`);
             }
@@ -906,15 +987,16 @@ export async function incrementalUpload(
       encrypted: !!options?.encryptionPassword,
     };
 
-    const manifestSuccess = await uploadFile(
+    const manifestUploadResult = await uploadFile(
       manifestUrl,
       config,
       JSON.stringify(newManifest, null, 2),
     );
-    if (!manifestSuccess) {
+    if (!manifestUploadResult.success) {
+      const error = formatWebDAVWriteError(manifestUploadResult.error);
       return {
         success: false,
-        message: "Failed to upload manifest / 上传 manifest 失败",
+        message: `Failed to upload manifest: ${error.en} / 上传 manifest 失败: ${error.zh}`,
       };
     }
 

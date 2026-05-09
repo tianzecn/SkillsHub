@@ -111,6 +111,16 @@ const BUILTIN_REMOTE_STORES: Record<
     type: "git-repo",
     url: "https://github.com/openai/skills/tree/main/skills/.curated",
   },
+  "hermes-agent": {
+    id: "hermes-agent",
+    type: "git-repo",
+    url: "https://github.com/nousresearch/hermes-agent/tree/main/skills",
+  },
+  "hermes-agent-optional": {
+    id: "hermes-agent-optional",
+    type: "git-repo",
+    url: "https://github.com/nousresearch/hermes-agent/tree/main/optional-skills",
+  },
   community: {
     id: "community",
     type: "skills-sh",
@@ -409,6 +419,8 @@ export function SkillStore() {
   const isSelectedSourceRemote =
     selectedStoreSourceId === "claude-code" ||
     selectedStoreSourceId === "openai-codex" ||
+    selectedStoreSourceId === "hermes-agent" ||
+    selectedStoreSourceId === "hermes-agent-optional" ||
     selectedStoreSourceId === "community" ||
     Boolean(selectedCustomSource);
 
@@ -416,6 +428,7 @@ export function SkillStore() {
     async (
       repoUrl: string,
       partialFailures?: SkillFetchFailure[],
+      defaultCompatibility?: string[],
     ): Promise<RegistrySkill[]> => {
       // Old preload bundles (pre-tarball) won't have fetchGithubTarball.
       // Guard the lookup so we don't surface a TypeError before falling back.
@@ -429,6 +442,7 @@ export function SkillStore() {
           fetchRemoteContent: (url) => window.api.skill.fetchRemoteContent(url),
           fetchGithubTarball: tarballFetcher,
           registrySkills,
+          defaultCompatibility,
           rateLimitMessage: t(
             "skill.remoteStoreRateLimitHint",
             "GitHub API rate limit reached. Try again in a few minutes, or add a GitHub token in settings.",
@@ -769,9 +783,18 @@ export function SkillStore() {
           let skillsForSource: RegistrySkill[] = [];
           const partialFailures: SkillFetchFailure[] = [];
           if (source.type === "git-repo") {
+            const defaultCompatibility =
+              sourceId === "hermes-agent" ||
+              sourceId === "hermes-agent-optional"
+                ? ["hermes"]
+                : undefined;
             skillsForSource = isLikelyLocalSource(source.url)
               ? await loadLocalDirectoryStore(source.url)
-              : await loadGitHubRepoSkills(source.url, partialFailures);
+              : await loadGitHubRepoSkills(
+                  source.url,
+                  partialFailures,
+                  defaultCompatibility,
+                );
           } else if (source.type === "skills-sh") {
             skillsForSource = await loadSkillsShStore();
           } else if (source.type === "marketplace-json") {
@@ -867,7 +890,14 @@ export function SkillStore() {
     const enabledCustomSourceIds = customStoreSources
       .filter((source) => source.enabled)
       .map((source) => source.id);
-    const remoteSourceIds = ["claude-code", "openai-codex", "community", ...enabledCustomSourceIds];
+    const remoteSourceIds = [
+      "claude-code",
+      "openai-codex",
+      "hermes-agent",
+      "hermes-agent-optional",
+      "community",
+      ...enabledCustomSourceIds,
+    ];
 
     const refreshStoreSources = async (forceRefresh: boolean, intervalMs: number | null) => {
       if (typeof loadRegistryRef.current === "function") {
@@ -1142,6 +1172,32 @@ export function SkillStore() {
       };
     }
 
+    if (selectedStoreSourceId === "hermes-agent") {
+      return {
+        title: t("skill.hermesAgentStore", "Hermes Store"),
+        hint: t(
+          "skill.hermesAgentStoreHint",
+          "Built-in Hermes Agent source for bundled skills that are active in a standard Hermes install.",
+        ),
+        count: sourceRegistrySkills.length,
+        showCatalog: true,
+        canRefresh: true,
+      };
+    }
+
+    if (selectedStoreSourceId === "hermes-agent-optional") {
+      return {
+        title: t("skill.hermesAgentOptionalStore", "Hermes Optional Store"),
+        hint: t(
+          "skill.hermesAgentOptionalStoreHint",
+          "Official Hermes optional skills that ship with the repo but are not activated by default.",
+        ),
+        count: sourceRegistrySkills.length,
+        showCatalog: true,
+        canRefresh: true,
+      };
+    }
+
     if (selectedStoreSourceId === "new-custom") {
       return {
         title: t("skill.addStoreSource", "Add Store"),
@@ -1333,6 +1389,16 @@ export function SkillStore() {
                 ? t(
                     "skill.loadingOpenAiStore",
                     "Loading OpenAI Codex skills from the remote source...",
+                  )
+              : selectedStoreSourceId === "hermes-agent"
+                ? t(
+                    "skill.loadingHermesAgentStore",
+                    "Loading Hermes bundled skills from the remote source...",
+                  )
+              : selectedStoreSourceId === "hermes-agent-optional"
+                ? t(
+                    "skill.loadingHermesAgentOptionalStore",
+                    "Loading Hermes optional skills from the remote source...",
                   )
               : selectedStoreSourceId === "community"
                 ? t(
@@ -1536,6 +1602,92 @@ export function SkillStore() {
                 </div>
                 <div className="text-xs text-muted-foreground leading-6 break-all">
                   https://github.com/openai/skills/tree/main/skills/.curated
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {selectedStoreSourceId === "hermes-agent" && (
+          <div className="bg-card border border-border rounded-2xl p-6 space-y-4">
+            <div className="flex items-center gap-2 text-foreground">
+              <GlobeIcon className="w-5 h-5 text-primary" />
+              <h3 className="text-base font-semibold">
+                {t("skill.hermesAgentStore", "Hermes Store")}
+              </h3>
+            </div>
+            <p className="text-sm text-muted-foreground leading-7">
+              {t(
+                "skill.hermesAgentStoreDetail",
+                "This built-in source lists bundled Hermes Agent skills from the official repository. Imported entries default to the Hermes Agent platform.",
+              )}
+            </p>
+            <div className="grid gap-3 md:grid-cols-2">
+              <div className="rounded-xl border border-border bg-muted/30 p-4">
+                <div className="text-sm font-medium text-foreground mb-1">
+                  {t("skill.supportedFormat", "Supported Formats")}
+                </div>
+                <div className="text-xs text-muted-foreground leading-6">
+                  {t(
+                    "skill.formatDirectoryRepo",
+                    "`SKILL.md` directory-style repository",
+                  )}
+                  <br />
+                  {t(
+                    "skill.formatHermesBundledSubdir",
+                    "Hermes bundled skills subdirectory",
+                  )}
+                </div>
+              </div>
+              <div className="rounded-xl border border-border bg-muted/30 p-4">
+                <div className="text-sm font-medium text-foreground mb-1">
+                  {t("skill.exampleSources", "Built-in Reference Sources")}
+                </div>
+                <div className="text-xs text-muted-foreground leading-6 break-all">
+                  https://github.com/nousresearch/hermes-agent/tree/main/skills
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {selectedStoreSourceId === "hermes-agent-optional" && (
+          <div className="bg-card border border-border rounded-2xl p-6 space-y-4">
+            <div className="flex items-center gap-2 text-foreground">
+              <GlobeIcon className="w-5 h-5 text-primary" />
+              <h3 className="text-base font-semibold">
+                {t("skill.hermesAgentOptionalStore", "Hermes Optional Store")}
+              </h3>
+            </div>
+            <p className="text-sm text-muted-foreground leading-7">
+              {t(
+                "skill.hermesAgentOptionalStoreDetail",
+                "This built-in source lists official optional Hermes skills that ship with the repository but are not active by default.",
+              )}
+            </p>
+            <div className="grid gap-3 md:grid-cols-2">
+              <div className="rounded-xl border border-border bg-muted/30 p-4">
+                <div className="text-sm font-medium text-foreground mb-1">
+                  {t("skill.supportedFormat", "Supported Formats")}
+                </div>
+                <div className="text-xs text-muted-foreground leading-6">
+                  {t(
+                    "skill.formatDirectoryRepo",
+                    "`SKILL.md` directory-style repository",
+                  )}
+                  <br />
+                  {t(
+                    "skill.formatHermesOptionalSubdir",
+                    "Hermes optional skills subdirectory",
+                  )}
+                </div>
+              </div>
+              <div className="rounded-xl border border-border bg-muted/30 p-4">
+                <div className="text-sm font-medium text-foreground mb-1">
+                  {t("skill.exampleSources", "Built-in Reference Sources")}
+                </div>
+                <div className="text-xs text-muted-foreground leading-6 break-all">
+                  https://github.com/nousresearch/hermes-agent/tree/main/optional-skills
                 </div>
               </div>
             </div>

@@ -472,7 +472,7 @@ declare global {
         ensureDirectory: (
           url: string,
           config: { url: string; username: string; password: string },
-        ) => Promise<{ success: boolean }>;
+        ) => Promise<{ success: boolean; error?: string }>;
         upload: (
           fileUrl: string,
           config: { url: string; username: string; password: string },

@@ -31,17 +31,19 @@ export async function launchPromptHub(
     fs.mkdtempSync(path.join(os.tmpdir(), "prompthub-e2e-"));
   const mainEntry = getMainEntry();
   const seedPath = seedFileName ? getSeedPath(seedFileName) : undefined;
+  const launchEnv = {
+    ...process.env,
+    NODE_ENV: "test",
+    PROMPTHUB_E2E: "1",
+    PROMPTHUB_E2E_USER_DATA_DIR: userDataDir,
+    ...(seedPath ? { PROMPTHUB_E2E_SEED_PATH: seedPath } : {}),
+    ...options.env,
+  };
+  delete launchEnv.ELECTRON_RUN_AS_NODE;
 
   const app = await electron.launch({
     args: [mainEntry],
-    env: {
-      ...process.env,
-      NODE_ENV: "test",
-      PROMPTHUB_E2E: "1",
-      PROMPTHUB_E2E_USER_DATA_DIR: userDataDir,
-      ...(seedPath ? { PROMPTHUB_E2E_SEED_PATH: seedPath } : {}),
-      ...options.env,
-    },
+    env: launchEnv,
   });
 
   const page = await app.firstWindow();

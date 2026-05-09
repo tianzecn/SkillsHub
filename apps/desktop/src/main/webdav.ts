@@ -24,6 +24,18 @@ interface WebDAVResponse {
   error?: string;
 }
 
+export function isSuccessfulWebDAVStatus(statusCode: number): boolean {
+  return statusCode >= 200 && statusCode < 300;
+}
+
+function formatWebDAVError(response: WebDAVResponse): string {
+  if (response.status) {
+    const statusText = response.statusText || response.error || "Unknown error";
+    return `${response.status} ${statusText}`;
+  }
+  return response.error || "Unknown error";
+}
+
 /**
  * Send WebDAV request (using Node.js http/https modules)
  * 发送 WebDAV 请求（使用 Node.js http/https 模块）
@@ -63,7 +75,7 @@ async function sendWebDAVRequest(
         response.on("end", () => {
           const statusCode = response.statusCode || 0;
           resolve({
-            success: statusCode >= 200 && statusCode < 400,
+            success: isSuccessfulWebDAVStatus(statusCode),
             status: statusCode,
             statusText: response.statusMessage || "",
             data: responseData,
@@ -140,7 +152,7 @@ export function registerWebDAVIPC() {
       } else {
         return {
           success: false,
-          message: `Connection failed: ${response.status} ${response.statusText || response.error}`,
+          message: `Connection failed: ${formatWebDAVError(response)}`,
         };
       }
     },
@@ -174,7 +186,15 @@ export function registerWebDAVIPC() {
       // 不存在则创建
       const mkcolRes = await sendWebDAVRequest("MKCOL", url, authHeader);
 
-      return { success: mkcolRes.success || mkcolRes.status === 201 };
+      if (
+        mkcolRes.success ||
+        mkcolRes.status === 201 ||
+        mkcolRes.status === 405
+      ) {
+        return { success: true };
+      }
+
+      return { success: false, error: formatWebDAVError(mkcolRes) };
     },
   );
 
@@ -211,7 +231,7 @@ export function registerWebDAVIPC() {
       } else {
         return {
           success: false,
-          error: `${response.status} ${response.statusText || response.error}`,
+          error: formatWebDAVError(response),
         };
       }
     },
@@ -258,7 +278,7 @@ export function registerWebDAVIPC() {
 
       return {
         success: false,
-        error: `${response.status} ${response.statusText || response.error}`,
+        error: formatWebDAVError(response),
       };
     },
   );
@@ -287,7 +307,7 @@ export function registerWebDAVIPC() {
       } else {
         return {
           success: false,
-          error: `${response.status} ${response.statusText || response.error}`,
+          error: formatWebDAVError(response),
         };
       }
     },

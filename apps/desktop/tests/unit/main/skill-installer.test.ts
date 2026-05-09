@@ -261,6 +261,22 @@ describe("SkillInstaller.getSupportedPlatforms", () => {
     const ids = SkillInstaller.getSupportedPlatforms().map((p) => p.id);
     expect(new Set(ids).size).toBe(ids.length);
   });
+
+  it("includes Hermes Agent with the default active skills directory", () => {
+    const hermes = SkillInstaller.getSupportedPlatforms().find(
+      (platform) => platform.id === "hermes",
+    );
+
+    expect(hermes).toMatchObject({
+      id: "hermes",
+      name: "Hermes Agent",
+      skillsDir: {
+        darwin: "~/.hermes/skills",
+        win32: "%USERPROFILE%\\.hermes\\skills",
+        linux: "~/.hermes/skills",
+      },
+    });
+  });
 });
 
 // ---------- getLocalRepoPath ----------

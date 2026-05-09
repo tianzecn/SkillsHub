@@ -25,11 +25,12 @@ test.describe("E2E: Skill smoke", () => {
 
       await page.getByRole("button", { name: "Skills" }).click();
       await expect(page.getByRole("button", { name: "My Skills" })).toBeVisible();
-      await expect(
-        page.getByRole("heading", { name: "write" }),
-      ).toBeVisible();
+      const seededSkillHeading = page
+        .getByRole("heading", { name: "write", exact: true })
+        .first();
+      await expect(seededSkillHeading).toBeVisible();
 
-      await page.getByRole("heading", { name: "write" }).click();
+      await seededSkillHeading.click();
       await expect(page.getByRole("button", { name: "Snapshot" })).toBeVisible();
       await expect(page.getByText("Current Version v0")).toBeVisible();
 
@@ -65,7 +66,7 @@ test.describe("E2E: Skill smoke", () => {
   });
 
   test("delays startup WebDAV sync until a hidden launch becomes visible", async () => {
-    const { app, page, userDataDir } = await launchPromptHub(
+    const firstLaunch = await launchPromptHub(
       "background-sync.seed.json",
       {
         env: {
@@ -73,14 +74,15 @@ test.describe("E2E: Skill smoke", () => {
         },
       },
     );
+    let app = firstLaunch.app;
+    let page = firstLaunch.page;
+    const { userDataDir } = firstLaunch;
+    let appOpen = true;
 
     try {
       await expect(page).toHaveTitle(/PromptHub/);
-      await expect
-        .poll(async () => Boolean((await getE2EStats(page))?.webdav))
-        .toBe(true);
-      await expect.poll(() => isAppWindowVisible(app)).toBe(false);
       await setAppSettings(page, {
+        minimizeOnLaunch: true,
         webdavEnabled: true,
         webdavUrl: "https://e2e.example.com/dav",
         webdavUsername: "e2e-user",
@@ -90,6 +92,24 @@ test.describe("E2E: Skill smoke", () => {
         webdavAutoSyncInterval: 0,
         autoCheckUpdate: false,
       });
+
+      await closePromptHub(app, userDataDir, { preserveUserDataDir: true });
+      appOpen = false;
+
+      const secondLaunch = await launchPromptHub(null, {
+        userDataDir,
+        env: {
+          PROMPTHUB_E2E_WEBDAV_MODE: "remote-empty",
+        },
+      });
+      app = secondLaunch.app;
+      page = secondLaunch.page;
+      appOpen = true;
+
+      await expect(page).toHaveTitle(/PromptHub/);
+      await expect
+        .poll(async () => Boolean((await getE2EStats(page))?.webdav))
+        .toBe(true);
       await expect.poll(() => isAppWindowVisible(app)).toBe(false);
       await resetE2EStats(page);
 
@@ -112,7 +132,11 @@ test.describe("E2E: Skill smoke", () => {
         .poll(async () => (await getE2EStats(page))?.webdav.ensureDirectory ?? 0)
         .toBeGreaterThan(0);
     } finally {
-      await closePromptHub(app, userDataDir);
+      if (appOpen) {
+        await closePromptHub(app, userDataDir);
+      } else {
+        fs.rmSync(userDataDir, { recursive: true, force: true });
+      }
     }
   });
 
@@ -152,11 +176,10 @@ test.describe("E2E: Skill smoke", () => {
 
       const promptFile = path.join(
         userDataDir,
-        "workspace",
+        "data",
         "prompts",
         "ops",
-        "deploy-checklist__prompt_ops_1",
-        "prompt.md",
+        "deploy-checklist.md",
       );
 
       await expect

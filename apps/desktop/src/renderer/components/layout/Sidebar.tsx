@@ -131,6 +131,14 @@ export function Sidebar({ currentPage, onNavigate }: SidebarProps) {
     () => remoteStoreEntries['openai-codex']?.skills.length || 0,
     [remoteStoreEntries],
   );
+  const hermesAgentStoreCount = useMemo(
+    () => remoteStoreEntries['hermes-agent']?.skills.length || 0,
+    [remoteStoreEntries],
+  );
+  const hermesAgentOptionalStoreCount = useMemo(
+    () => remoteStoreEntries['hermes-agent-optional']?.skills.length || 0,
+    [remoteStoreEntries],
+  );
   const communityStoreCount = useMemo(
     () => remoteStoreEntries['community']?.skills.length || 0,
     [remoteStoreEntries],
@@ -871,6 +879,44 @@ export function Sidebar({ currentPage, onNavigate }: SidebarProps) {
                   </span>
                   <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-sidebar-accent/80 text-sidebar-foreground/50 border border-white/5">
                     {openAiCodexStoreCount}
+                  </span>
+                </button>
+                <button
+                  onClick={() => {
+                    selectStoreSource('hermes-agent');
+                    if (currentPage !== 'home') onNavigate('home');
+                  }}
+                  className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors ${
+                    selectedStoreSourceId === 'hermes-agent'
+                      ? 'bg-sidebar-accent text-sidebar-foreground'
+                      : 'text-sidebar-foreground/60 hover:bg-sidebar-accent/40 hover:text-sidebar-foreground'
+                  }`}
+                >
+                  <GlobeIcon className="w-4 h-4" />
+                  <span className="flex-1 text-left truncate">
+                    {t('skill.hermesAgentStore', 'Hermes 商店')}
+                  </span>
+                  <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-sidebar-accent/80 text-sidebar-foreground/50 border border-white/5">
+                    {hermesAgentStoreCount}
+                  </span>
+                </button>
+                <button
+                  onClick={() => {
+                    selectStoreSource('hermes-agent-optional');
+                    if (currentPage !== 'home') onNavigate('home');
+                  }}
+                  className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors ${
+                    selectedStoreSourceId === 'hermes-agent-optional'
+                      ? 'bg-sidebar-accent text-sidebar-foreground'
+                      : 'text-sidebar-foreground/60 hover:bg-sidebar-accent/40 hover:text-sidebar-foreground'
+                  }`}
+                >
+                  <GlobeIcon className="w-4 h-4" />
+                  <span className="flex-1 text-left truncate">
+                    {t('skill.hermesAgentOptionalStore', 'Hermes Optional 商店')}
+                  </span>
+                  <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-sidebar-accent/80 text-sidebar-foreground/50 border border-white/5">
+                    {hermesAgentOptionalStoreCount}
                   </span>
                 </button>
                 <button

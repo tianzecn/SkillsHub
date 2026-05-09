@@ -179,20 +179,14 @@ test.describe("E2E: desktop self-hosted sync", () => {
         };
       });
 
-      expect(restoredState.prompts).toHaveLength(2);
-      expect(restoredState.folders).toHaveLength(2);
-      expect(restoredState.prompts).toEqual(
-        expect.arrayContaining([
-          expect.objectContaining({ title: "Auto Pull Prompt" }),
-          expect.objectContaining({ title: "Deploy Checklist" }),
-        ]),
-      );
-      expect(restoredState.folders).toEqual(
-        expect.arrayContaining([
-          expect.objectContaining({ name: "Startup Folder" }),
-          expect.objectContaining({ name: "Ops" }),
-        ]),
-      );
+      expect(restoredState.prompts).toHaveLength(1);
+      expect(restoredState.folders).toHaveLength(1);
+      expect(restoredState.prompts).toEqual([
+        expect.objectContaining({ title: "Auto Pull Prompt" }),
+      ]);
+      expect(restoredState.folders).toEqual([
+        expect.objectContaining({ name: "Startup Folder" }),
+      ]);
 
       const startupPrompt = restoredState.prompts.find(
         (prompt) => prompt.title === "Auto Pull Prompt",

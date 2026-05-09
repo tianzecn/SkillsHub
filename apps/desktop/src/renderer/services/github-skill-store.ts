@@ -17,6 +17,14 @@ export interface SkillFetchFailure {
   message: string;
 }
 
+interface ParsedGithubRepo {
+  owner: string;
+  repo: string;
+  repositoryUrl: string;
+  branch?: string;
+  subdir?: string;
+}
+
 function stripQuotes(value: string): string {
   return value.trim().replace(/^['"]|['"]$/g, "");
 }
@@ -151,21 +159,73 @@ function isRootReadmePath(filePath: string): boolean {
   return /^[^/]+$/u.test(filePath) && /^readme\.md$/i.test(filePath);
 }
 
-export function parseGithubRepo(
-  url: string,
-): { owner: string; repo: string; repositoryUrl: string } | null {
+function safeDecodeURIComponent(value: string): string {
+  try {
+    return decodeURIComponent(value);
+  } catch {
+    return value;
+  }
+}
+
+function normalizeRepoSubdir(parts: string[]): string | undefined {
+  const normalizedParts = parts
+    .map((part) => safeDecodeURIComponent(part).trim())
+    .filter(Boolean);
+  if (normalizedParts.some((part) => part === "." || part === "..")) {
+    return undefined;
+  }
+  return normalizedParts.join("/") || undefined;
+}
+
+function isWithinRepoSubdir(filePath: string, subdir?: string): boolean {
+  if (!subdir) return true;
+  return filePath === subdir || filePath.startsWith(`${subdir}/`);
+}
+
+function isSourceReadmePath(filePath: string, subdir?: string): boolean {
+  if (!subdir) return isRootReadmePath(filePath);
+  return filePath.toLowerCase() === `${subdir.toLowerCase()}/readme.md`;
+}
+
+export function parseGithubRepo(url: string): ParsedGithubRepo | null {
   const normalized = url
     .trim()
-    .replace(/^git@github\.com:/, "https://github.com/")
-    .replace(/\.git$/, "");
-  const match = normalized.match(/github\.com\/([^/]+)\/([^/]+)/i);
-  if (!match) {
+    .replace(/^git@github\.com:/i, "https://github.com/")
+    .replace(/\.git$/i, "");
+
+  let parsedUrl: URL;
+  try {
+    parsedUrl = new URL(normalized);
+  } catch {
     return null;
   }
+
+  if (parsedUrl.hostname.toLowerCase() !== "github.com") {
+    return null;
+  }
+
+  const parts = parsedUrl.pathname.split("/").filter(Boolean);
+  const owner = parts[0];
+  const repo = parts[1]?.replace(/\.git$/i, "");
+  if (!owner || !repo) {
+    return null;
+  }
+
+  const branch =
+    parts[2] === "tree" && parts[3]
+      ? safeDecodeURIComponent(parts[3])
+      : undefined;
+  const subdir =
+    parts[2] === "tree" && parts[3]
+      ? normalizeRepoSubdir(parts.slice(4))
+      : undefined;
+
   return {
-    owner: match[1],
-    repo: match[2],
-    repositoryUrl: `https://github.com/${match[1]}/${match[2]}`,
+    owner,
+    repo,
+    repositoryUrl: `https://github.com/${owner}/${repo}`,
+    branch,
+    subdir,
   };
 }
 
@@ -175,15 +235,23 @@ export function parseGithubRepo(
  * per-file raw fetch flow.
  */
 function buildRegistrySkillFromContent(args: {
-  parsedRepo: { owner: string; repo: string; repositoryUrl: string };
+  parsedRepo: ParsedGithubRepo;
   defaultBranch: string;
   repoMeta: GitHubRepoMetadata;
   builtinBySlug: Map<string, RegistrySkill>;
   path: string;
   content: string;
+  defaultCompatibility?: string[];
 }): RegistrySkill {
-  const { parsedRepo, defaultBranch, repoMeta, builtinBySlug, path, content } =
-    args;
+  const {
+    parsedRepo,
+    defaultBranch,
+    repoMeta,
+    builtinBySlug,
+    path,
+    content,
+    defaultCompatibility,
+  } = args;
   const pathParts = path.split("/");
   const directoryPath = pathParts.slice(0, -1).join("/");
   const directoryName =
@@ -227,7 +295,8 @@ function buildRegistrySkillFromContent(args: {
     content,
     content_url: rawUrl,
     prerequisites: builtin?.prerequisites,
-    compatibility: builtin?.compatibility || ["claude", "cursor"],
+    compatibility:
+      defaultCompatibility || builtin?.compatibility || ["claude", "cursor"],
   } satisfies RegistrySkill;
 }
 
@@ -263,6 +332,7 @@ export async function loadGitHubSkillRepo(
      * loaded skills so the UI never throws away partial progress.
      */
     onPartialFailure?: (failures: SkillFetchFailure[]) => void;
+    defaultCompatibility?: string[];
     /** Test-only sleep override forwarded to the retry helper. */
     sleep?: (ms: number) => Promise<void>;
   },
@@ -284,7 +354,7 @@ export async function loadGitHubSkillRepo(
     throw error;
   }
   const repoMeta = parseJson<GitHubRepoMetadata>(repoMetaRaw || "{}", {});
-  const defaultBranch = repoMeta.default_branch || "main";
+  const defaultBranch = parsedRepo.branch || repoMeta.default_branch || "main";
 
   const builtinBySlug = new Map(
     options.registrySkills.map((skill) => [skill.slug, skill]),
@@ -302,7 +372,8 @@ export async function loadGitHubSkillRepo(
         defaultBranch,
       );
       const tarballSkillFiles = tarFiles.filter((file) =>
-        isSkillMarkdownPath(file.path),
+        isSkillMarkdownPath(file.path) &&
+          isWithinRepoSubdir(file.path, parsedRepo.subdir),
       );
 
       if (tarballSkillFiles.length > 0) {
@@ -314,6 +385,7 @@ export async function loadGitHubSkillRepo(
             builtinBySlug,
             path: file.path,
             content: file.content,
+            defaultCompatibility: options.defaultCompatibility,
           }),
         );
         return dedupeRegistrySkills(skills);
@@ -351,7 +423,10 @@ export async function loadGitHubSkillRepo(
     ? treeData.tree.filter(isGitHubTreeEntry)
     : [];
   const skillFiles = treeEntries.filter(
-    (item) => item.type === "blob" && isSkillMarkdownPath(item.path),
+    (item) =>
+      item.type === "blob" &&
+      isSkillMarkdownPath(item.path) &&
+      isWithinRepoSubdir(item.path, parsedRepo.subdir),
   );
 
   const concurrency = options.concurrency ?? GITHUB_SKILL_FETCH_CONCURRENCY;
@@ -410,6 +485,7 @@ export async function loadGitHubSkillRepo(
         builtinBySlug,
         path,
         content,
+        defaultCompatibility: options.defaultCompatibility,
       }),
     };
   });
@@ -446,7 +522,8 @@ export async function loadGitHubSkillRepo(
   }
 
   const readmeEntry = treeEntries.find(
-    (item) => item.type === "blob" && isRootReadmePath(item.path),
+    (item) =>
+      item.type === "blob" && isSourceReadmePath(item.path, parsedRepo.subdir),
   );
   if (!readmeEntry) {
     return [];
@@ -460,15 +537,21 @@ export async function loadGitHubSkillRepo(
   );
   const content = await options.fetchRemoteContent(rawUrl);
   const parsed = parseFrontmatter(content);
-  const slug = slugify(parsed.name || parsedRepo.repo);
+  const fallbackSlug = parsedRepo.subdir
+    ? parsedRepo.subdir.split("/").filter(Boolean).pop() || parsedRepo.repo
+    : parsedRepo.repo;
+  const slug = slugify(parsed.name || fallbackSlug);
   const builtin = builtinBySlug.get(slug);
   const description =
     parsed.description || builtin?.description || `${toTitleCase(slug)} skill`;
+  const sourceRepoUrl = parsedRepo.subdir
+    ? `${parsedRepo.repositoryUrl}/tree/${defaultBranch}/${parsedRepo.subdir}`
+    : `${parsedRepo.repositoryUrl}/tree/${defaultBranch}`;
 
   return [
     {
       slug,
-      name: builtin?.name || parsed.name || toTitleCase(parsedRepo.repo),
+      name: builtin?.name || parsed.name || toTitleCase(fallbackSlug),
       install_name: parsed.name || undefined,
       description,
       category: builtin?.category || inferCategory(slug, description),
@@ -479,7 +562,7 @@ export async function loadGitHubSkillRepo(
         builtin?.author ||
         repoMeta?.owner?.login ||
         (parsedRepo.owner === "anthropics" ? "Anthropic" : parsedRepo.owner),
-      source_url: `${parsedRepo.repositoryUrl}/tree/${defaultBranch}`,
+      source_url: sourceRepoUrl,
       tags: builtin?.tags?.length
         ? builtin.tags
         : parsed.tags.length
@@ -489,7 +572,10 @@ export async function loadGitHubSkillRepo(
       content,
       content_url: rawUrl,
       prerequisites: builtin?.prerequisites,
-      compatibility: builtin?.compatibility || ["claude", "cursor"],
+      compatibility:
+        options.defaultCompatibility ||
+        builtin?.compatibility ||
+        ["claude", "cursor"],
     } satisfies RegistrySkill,
   ];
 }

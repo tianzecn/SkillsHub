@@ -1,5 +1,21 @@
 ## [Unreleased]
 
+## [0.6.0] - 2026-05-10
+
+### 新增 / Added
+
+- 🧩 **Hermes Agent 技能来源**：Skill 商店新增 Hermes Agent 与 Hermes Optional 两个内置远程源，支持从 `nousresearch/hermes-agent` 的指定子目录加载 `SKILL.md`，并默认标记为 Hermes 平台兼容
+  - **Hermes Agent Skill Sources**: Added built-in Hermes Agent and Hermes Optional remote sources to the Skill Store, with support for loading `SKILL.md` files from selected `nousresearch/hermes-agent` subdirectories and defaulting imported entries to Hermes platform compatibility.
+- 🤖 **Hermes Agent 平台支持**：平台列表新增 Hermes Agent，默认安装目录为 `~/.hermes/skills`，并补齐侧边栏入口、平台图标、多语言文案与回归测试
+  - **Hermes Agent Platform Support**: Added Hermes Agent to the supported platform list with the default `~/.hermes/skills` install directory, plus sidebar entries, platform icon support, localized copy, and regression coverage.
+
+### 修复 / Fixed
+
+- ☁️ **WebDAV 上传诊断修复**：上传 `data.json`、`manifest.json` 或准备远端目录失败时，现在会透传真实 WebDAV 状态码与写入权限提示，不再只显示笼统的“上传数据文件失败”
+  - **WebDAV Upload Diagnostics**: Upload failures for `data.json`, `manifest.json`, or remote directory preparation now preserve the real WebDAV status and write-permission guidance instead of collapsing everything into a generic data-file upload error.
+- 🔗 **WebDAV 连接判定修复**：主进程 WebDAV 请求不再把 3xx 跳转当成连接成功，避免普通网页或重定向地址被误判为可用 WebDAV 端点
+  - **WebDAV Connection Validation**: Main-process WebDAV requests no longer treat 3xx redirects as successful connections, preventing ordinary web pages or redirecting URLs from being mistaken for usable WebDAV endpoints.
+
 ## [0.5.11] - 2026-05-05
 
 ### 维护 / Maintenance

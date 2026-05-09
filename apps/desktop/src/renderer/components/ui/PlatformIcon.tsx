@@ -70,6 +70,7 @@ const FALLBACK_ICONS: Record<string, React.ReactNode> = {
   trae: <ZapIcon />,
   opencode: <TerminalIcon />,
   codex: <TerminalIcon />,
+  hermes: <BotIcon />,
   roo: <BotIcon />,
   amp: <ZapIcon />,
   openclaw: <BugIcon />,

@@ -175,7 +175,10 @@ describe("SkillStore remote loading", () => {
         "https://api.github.com/repos/openai/skills/git/trees/main?recursive=1"
       ) {
         return JSON.stringify({
-          tree: [{ path: "skills/.curated/openai-skill/SKILL.md", type: "blob" }],
+          tree: [
+            { path: "skills/.curated/openai-skill/SKILL.md", type: "blob" },
+            { path: "skills/experimental/other-skill/SKILL.md", type: "blob" },
+          ],
         });
       }
 
@@ -344,6 +347,194 @@ describe("SkillStore remote loading", () => {
         source_url: "https://github.com/openai/skills/tree/main/skills/.curated/openai-skill",
         content_url:
           "https://raw.githubusercontent.com/openai/skills/main/skills/.curated/openai-skill/SKILL.md",
+      }),
+    );
+  });
+
+  it("loads the built-in Hermes store from the bundled skills subdirectory", async () => {
+    const fetchRemoteContent = vi.fn(async (url: string) => {
+      if (url === "https://api.github.com/repos/nousresearch/hermes-agent") {
+        return JSON.stringify({
+          default_branch: "main",
+          owner: { login: "nousresearch" },
+        });
+      }
+
+      if (
+        url ===
+        "https://api.github.com/repos/nousresearch/hermes-agent/git/trees/main?recursive=1"
+      ) {
+        return JSON.stringify({
+          tree: [
+            { path: "skills/dogfood/SKILL.md", type: "blob" },
+            { path: "optional-skills/health/neuroskill-bci/SKILL.md", type: "blob" },
+          ],
+        });
+      }
+
+      if (
+        url ===
+        "https://raw.githubusercontent.com/nousresearch/hermes-agent/main/skills/dogfood/SKILL.md"
+      ) {
+        return [
+          "---",
+          "name: dogfood",
+          "description: Hermes bundled skill",
+          "tags: [hermes]",
+          "---",
+          "",
+          "# Dogfood",
+        ].join("\n");
+      }
+
+      throw new Error(`Unexpected URL: ${url}`);
+    });
+
+    installWindowMocks({
+      api: {
+        settings: {
+          get: vi.fn().mockResolvedValue({
+            device: {
+              storeAutoSync: false,
+              storeSyncCadence: "manual",
+            },
+          }),
+        },
+        skill: {
+          fetchRemoteContent,
+          scanLocalPreview: vi.fn().mockResolvedValue([]),
+          scanSafety: vi.fn().mockResolvedValue({
+            level: "safe",
+            summary: "safe",
+            findings: [],
+            recommendedAction: "allow",
+            scannedAt: Date.now(),
+            checkedFileCount: 1,
+            scanMethod: "static",
+          }),
+        },
+      },
+    });
+
+    useSkillStore.setState({
+      selectedStoreSourceId: "hermes-agent",
+    });
+
+    await act(async () => {
+      await renderWithI18n(<SkillStore />, { language: "en" });
+    });
+
+    await waitFor(() => {
+      expect(
+        useSkillStore.getState().remoteStoreEntries["hermes-agent"]?.skills,
+      ).toHaveLength(1);
+    });
+
+    expect(
+      useSkillStore.getState().remoteStoreEntries["hermes-agent"]?.skills[0],
+    ).toEqual(
+      expect.objectContaining({
+        slug: "dogfood",
+        compatibility: ["hermes"],
+        source_url:
+          "https://github.com/nousresearch/hermes-agent/tree/main/skills/dogfood",
+        content_url:
+          "https://raw.githubusercontent.com/nousresearch/hermes-agent/main/skills/dogfood/SKILL.md",
+      }),
+    );
+  });
+
+  it("loads the built-in Hermes Optional store from optional-skills", async () => {
+    const fetchRemoteContent = vi.fn(async (url: string) => {
+      if (url === "https://api.github.com/repos/nousresearch/hermes-agent") {
+        return JSON.stringify({
+          default_branch: "main",
+          owner: { login: "nousresearch" },
+        });
+      }
+
+      if (
+        url ===
+        "https://api.github.com/repos/nousresearch/hermes-agent/git/trees/main?recursive=1"
+      ) {
+        return JSON.stringify({
+          tree: [
+            { path: "skills/dogfood/SKILL.md", type: "blob" },
+            { path: "optional-skills/health/neuroskill-bci/SKILL.md", type: "blob" },
+          ],
+        });
+      }
+
+      if (
+        url ===
+        "https://raw.githubusercontent.com/nousresearch/hermes-agent/main/optional-skills/health/neuroskill-bci/SKILL.md"
+      ) {
+        return [
+          "---",
+          "name: neuroskill-bci",
+          "description: Hermes optional skill",
+          "tags: [hermes, optional]",
+          "---",
+          "",
+          "# Neuroskill",
+        ].join("\n");
+      }
+
+      throw new Error(`Unexpected URL: ${url}`);
+    });
+
+    installWindowMocks({
+      api: {
+        settings: {
+          get: vi.fn().mockResolvedValue({
+            device: {
+              storeAutoSync: false,
+              storeSyncCadence: "manual",
+            },
+          }),
+        },
+        skill: {
+          fetchRemoteContent,
+          scanLocalPreview: vi.fn().mockResolvedValue([]),
+          scanSafety: vi.fn().mockResolvedValue({
+            level: "safe",
+            summary: "safe",
+            findings: [],
+            recommendedAction: "allow",
+            scannedAt: Date.now(),
+            checkedFileCount: 1,
+            scanMethod: "static",
+          }),
+        },
+      },
+    });
+
+    useSkillStore.setState({
+      selectedStoreSourceId: "hermes-agent-optional",
+    });
+
+    await act(async () => {
+      await renderWithI18n(<SkillStore />, { language: "en" });
+    });
+
+    await waitFor(() => {
+      expect(
+        useSkillStore.getState().remoteStoreEntries["hermes-agent-optional"]
+          ?.skills,
+      ).toHaveLength(1);
+    });
+
+    expect(
+      useSkillStore.getState().remoteStoreEntries["hermes-agent-optional"]
+        ?.skills[0],
+    ).toEqual(
+      expect.objectContaining({
+        slug: "neuroskill-bci",
+        compatibility: ["hermes"],
+        source_url:
+          "https://github.com/nousresearch/hermes-agent/tree/main/optional-skills/health/neuroskill-bci",
+        content_url:
+          "https://raw.githubusercontent.com/nousresearch/hermes-agent/main/optional-skills/health/neuroskill-bci/SKILL.md",
       }),
     );
   });
