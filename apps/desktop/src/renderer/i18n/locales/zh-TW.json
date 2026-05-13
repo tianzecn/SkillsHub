@@ -841,7 +841,12 @@
     "skillsShCommunitySource": "skills.sh 社群來源",
     "skillsShApiKey": "skills.sh API Key",
     "skillsShApiKeyPlaceholder": "可選 API Key，例如 sk_live_...",
-    "skillsShApiKeyDesc": "可選。僅在載入內建 skills.sh 社群來源時使用。它會和本機模型 API Key 一樣，儲存在你的本機 PromptHub 設定中。"
+    "skillsShApiKeyDesc": "可選。僅在載入內建 skills.sh 社群來源時使用。它會和本機模型 API Key 一樣，儲存在你的本機 PromptHub 設定中。",
+    "aiWorkbenchScenarioSkillSearch": "Skill 搜尋 / AI 找技能",
+    "aiWorkbenchScenarioSkillSearchDesc": "用於根據搜尋詞、候選摘要和已快取解讀重排 Skill，並在需要時擴展到外部來源。",
+    "aiWorkbenchBadgeSkillSearch": "Skill 搜尋",
+    "skillSearchEnabled": "啟用 AI Skill 搜尋",
+    "skillSearchEnabledDesc": "輸入停頓後用 AI 重排目前結果；必要時查詢外部 Skill 來源。"
   },
   "import": {
     "clipboardTitle": "從剪貼簿匯入 Prompt",
@@ -1460,7 +1465,41 @@
     "insightGenerateOnRefresh": "點擊重新整理解讀，為這個已安裝 Skill 生成 AI 使用建議。",
     "insightExampleExplicit": "明確點名",
     "insightExampleNatural": "自然意圖",
-    "insightExampleBoundary": "邊界情境"
+    "insightExampleBoundary": "邊界情境",
+    "searchConsentTitle": "啟用全自動 AI Skill 搜尋？",
+    "searchConsentDesc": "PromptHub 會把搜尋詞、候選摘要和已快取 AI 解讀傳送到你配置的 AI 服務；結果不足時可能查詢外部 Skill 來源，並可能消耗 token。",
+    "searchEnable": "啟用 AI 搜尋",
+    "searchAiResultsTitle": "AI 搜尋結果",
+    "searchAiResultsDesc": "針對「{{query}}」的語義匹配與外部建議",
+    "searchRefresh": "重新搜尋",
+    "searchAiNotConfigured": "AI 搜尋已啟用，但還沒有配置 Skill 搜尋模型。會先顯示本地匹配結果。",
+    "searchAiFailed": "AI 搜尋暫時失敗，已回退到本地匹配結果。",
+    "searchOnlineTitle": "需要更多匹配嗎？",
+    "searchOnlineDesc": "目前結果來自已載入來源和已快取 AI 解讀。線上查找只查詢 skills.sh，不呼叫 AI。",
+    "searchOnlineButton": "線上查找",
+    "searchOnlineLoading": "查找中...",
+    "searchSource": {
+      "installed": "已安裝",
+      "official": "官方",
+      "community": "社群",
+      "custom": "自訂",
+      "external": "外部"
+    },
+    "searchWeakMatch": "弱匹配",
+    "searchLocalMatchReason": "匹配了本地欄位或已快取的 AI 解讀。",
+    "searchConfidence": {
+      "high": "高置信",
+      "medium": "中置信",
+      "low": "低置信"
+    },
+    "searchSignalWeeklyInstalls": "{{value}}/週",
+    "searchSignalGithubStars": "{{value}} stars",
+    "searchSignalAuditPass": "審計通過",
+    "searchSignalAuditWarn": "審計注意",
+    "searchSignalAuditFail": "審計風險",
+    "searchSignalInsightCaution": "謹慎匯入",
+    "searchSignalInsightNotRecommended": "不建議匯入",
+    "searchNoAiResults": "沒有找到更合適的 AI 匹配"
   },
   "error": {
     "sha512Desc": "SHA512 校验失败。\n这通常是由于 CDN 缓存不一致或网络劫持导致的。\n文件可能已下载完成，您可以尝试手动安装。"

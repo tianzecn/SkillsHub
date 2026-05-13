@@ -1,5 +1,21 @@
 ## [Unreleased]
 
+## [0.9.0] - 2026-05-13
+
+### 新增 / Added
+
+- 🔎 **Skill AI 搜索**：我的 Skills 与 Skill 商店新增独立的 `skillSearch` AI 使用场景，可结合搜索词、已安装 Skill、远程商店候选和已缓存 AI 解读进行语义重排；当 AI 判断结果置信度较低时，会自动扩展到 skills.sh 社区源继续查找
+  - **Skill AI Search**: My Skills and the Skill Store now include a dedicated `skillSearch` AI scenario that reranks installed skills, remote-store candidates, and cached AI insight summaries from the user query. When confidence is low, the search can expand to the skills.sh community source.
+- 🌐 **在线 Skill 查找入口**：在本地 Skill 列表和商店搜索中输入足够明确的关键词后，会提示用户跳转或手动触发在线查找，便于从社区源补充本地尚未安装的 Skill
+  - **Online Skill Discovery Entry**: When a local or store search query is specific enough, PromptHub now offers a direct path to search online sources and pull in community skills that are not installed locally.
+
+### 优化 / Changed
+
+- 🧠 **解读内容参与搜索**：已安装 Skill 与商店候选会把已缓存 AI 解读中的能力摘要、适用场景、触发建议和示例提问纳入搜索匹配，让“按意图找技能”比只搜标题和标签更稳
+  - **Insight-Aware Search Matching**: Installed skills and store candidates now include cached insight summaries, best-fit scenarios, trigger guidance, and prompt examples in search matching, making intent-based skill discovery more reliable than title/tag search alone.
+- 📦 **完整 SKILL.md 同步**：本地 repo 同步不再使用导入字段长度限制后的正文计算内容 hash，而是保留完整 `SKILL.md` 正文，避免长 Skill 被截断后导致解读缓存失效或重复生成
+  - **Full SKILL.md Sync**: Local repo sync now preserves the complete `SKILL.md` body for content hashing instead of the import-field-limited text, preventing long skills from invalidating insight caches or generating duplicate insights.
+
 ## [0.8.1] - 2026-05-13
 
 ### 修复 / Fixed

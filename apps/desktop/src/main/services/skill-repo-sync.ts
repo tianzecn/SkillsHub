@@ -47,7 +47,10 @@ export function buildSkillSyncUpdateFromRepo(
   const update: UpdateSkillParams = {};
   let changed = false;
 
-  const nextContent = sanitized.instructions ?? skillMdContent;
+  // Repo sync must preserve the exact SKILL.md body. The import sanitizer caps
+  // text fields at 10KB, which is appropriate for metadata-ish imports but
+  // would change the content hash used by Skill insight caching.
+  const nextContent = skillMdContent;
   if ((skill.instructions ?? skill.content ?? "") !== nextContent) {
     update.instructions = nextContent;
     update.content = nextContent;

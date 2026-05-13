@@ -841,7 +841,12 @@
     "skillsShCommunitySource": "skills.sh Community-Quelle",
     "skillsShApiKey": "skills.sh API Key",
     "skillsShApiKeyPlaceholder": "Optionaler API Key, z. B. sk_live_...",
-    "skillsShApiKeyDesc": "Optional. Wird nur zum Laden der integrierten skills.sh Community-Quelle verwendet. Er wird wie lokale Modell-API-Keys in den lokalen PromptHub-Einstellungen gespeichert."
+    "skillsShApiKeyDesc": "Optional. Wird nur zum Laden der integrierten skills.sh Community-Quelle verwendet. Er wird wie lokale Modell-API-Keys in den lokalen PromptHub-Einstellungen gespeichert.",
+    "aiWorkbenchScenarioSkillSearch": "Skill-Suche / KI-Skill-Finder",
+    "aiWorkbenchScenarioSkillSearchDesc": "Sortiert Skills anhand von Suchbegriff, Kandidatenzusammenfassungen und gecachten Insights neu und erweitert bei Bedarf auf externe Quellen.",
+    "aiWorkbenchBadgeSkillSearch": "Skill-Suche",
+    "skillSearchEnabled": "KI-Skill-Suche aktivieren",
+    "skillSearchEnabledDesc": "Nach einer Eingabepause aktuelle Ergebnisse per KI neu sortieren und bei Bedarf externe Skill-Quellen abfragen."
   },
   "import": {
     "clipboardTitle": "Prompt aus Zwischenablage importieren",
@@ -1460,7 +1465,41 @@
     "insightGenerateOnRefresh": "Klicken Sie auf Insight aktualisieren, um KI-Nutzungshinweise für diesen installierten Skill zu erzeugen.",
     "insightExampleExplicit": "Explizit",
     "insightExampleNatural": "Natürliche Absicht",
-    "insightExampleBoundary": "Grenzfall"
+    "insightExampleBoundary": "Grenzfall",
+    "searchConsentTitle": "Automatische KI-Skill-Suche aktivieren?",
+    "searchConsentDesc": "PromptHub sendet Suchbegriff, Kandidatenzusammenfassungen und gecachte KI-Insights an den konfigurierten KI-Dienst. Bei wenigen Ergebnissen können externe Skill-Quellen abgefragt und Tokens verbraucht werden.",
+    "searchEnable": "KI-Suche aktivieren",
+    "searchAiResultsTitle": "KI-Suchergebnisse",
+    "searchAiResultsDesc": "Semantische Treffer und externe Vorschläge für „{{query}}“",
+    "searchRefresh": "Erneut suchen",
+    "searchAiNotConfigured": "Die KI-Suche ist aktiviert, aber es ist kein Skill-Search-Modell konfiguriert. Lokale Treffer werden zuerst angezeigt.",
+    "searchAiFailed": "Die KI-Suche ist vorübergehend fehlgeschlagen; lokale Treffer werden angezeigt.",
+    "searchOnlineTitle": "Mehr Treffer suchen?",
+    "searchOnlineDesc": "Aktuelle Ergebnisse nutzen geladene Quellen und gecachte KI-Insights. Die Online-Suche fragt skills.sh ab, ohne KI aufzurufen.",
+    "searchOnlineButton": "Online suchen",
+    "searchOnlineLoading": "Suche...",
+    "searchSource": {
+      "installed": "Installiert",
+      "official": "Offiziell",
+      "community": "Community",
+      "custom": "Benutzerdefiniert",
+      "external": "Extern"
+    },
+    "searchWeakMatch": "Schwacher Treffer",
+    "searchLocalMatchReason": "Passt zu lokalen Feldern oder gecachtem KI-Insight.",
+    "searchConfidence": {
+      "high": "Hohe Sicherheit",
+      "medium": "Mittlere Sicherheit",
+      "low": "Niedrige Sicherheit"
+    },
+    "searchSignalWeeklyInstalls": "{{value}}/Woche",
+    "searchSignalGithubStars": "{{value}} stars",
+    "searchSignalAuditPass": "Audit bestanden",
+    "searchSignalAuditWarn": "Audit-Hinweis",
+    "searchSignalAuditFail": "Audit-Risiko",
+    "searchSignalInsightCaution": "Vorsichtig importieren",
+    "searchSignalInsightNotRecommended": "Nicht empfohlen",
+    "searchNoAiResults": "Keine stärkeren KI-Treffer gefunden"
   },
   "error": {
     "sha512Desc": "SHA512 checksum mismatch.\nThis is usually caused by CDN cache inconsistencies or network issues.\nThe file may have been downloaded successfully. You can try to install it manually."

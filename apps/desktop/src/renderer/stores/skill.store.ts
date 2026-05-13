@@ -17,6 +17,9 @@ import type {
   SafetyScanAIConfig,
   SkillInsight,
   SkillInsightCacheEntry,
+  SkillSearchCandidate,
+  SkillSearchResponse,
+  SkillSearchResult,
 } from "@prompthub/shared/types";
 import {
   BUILTIN_SKILL_REGISTRY,
@@ -48,6 +51,20 @@ import {
   parseSkillsShDetail,
   type SkillsShLeaderboardEntry,
 } from "../services/skills-sh-store";
+import {
+  buildInstalledSkillSearchCandidate,
+  buildRegistrySkillSearchCandidate,
+  buildSkillInsightSearchText,
+  buildSkillSearchMessages,
+  createFallbackSkillSearchResponse,
+  dedupeRegistrySkillList,
+  dedupeSkillSearchCandidates,
+  mergeSkillSearchResponses,
+  parseSkillSearchResponse,
+  rankSkillSearchCandidatesForPrompt,
+  shouldExpandSkillSearch,
+  shouldTriggerSkillAISearch,
+} from "../services/skill-search";
 import { useSettingsStore } from "./settings.store";
 
 export type SkillFilterType =
@@ -86,6 +103,9 @@ const SKILL_INSIGHT_CACHE_MAX_SIZE = 300;
 const SKILL_INSIGHT_CACHE_EVICT_COUNT = 75;
 const REMOTE_CONTENT_CONCURRENCY = 3;
 const REMOTE_REPO_SYNC_CONCURRENCY = 3;
+const SKILL_SEARCH_EXTERNAL_LIMIT = 60;
+
+let skillSearchRequestSeq = 0;
 
 interface ParsedGitHubSkillLocation {
   owner: string;
@@ -112,6 +132,33 @@ export interface SkillSafetyBatchSummary {
   highRisk: number;
   blocked: number;
   bySkillId: Record<string, SkillSafetyLevel>;
+}
+
+export type SkillSearchSurface = "my-skills" | "store";
+export type SkillSearchStatus = "idle" | "loading" | "ready" | "error";
+
+export interface SkillSearchResultItem {
+  candidate: SkillSearchCandidate;
+  result: SkillSearchResult;
+  skill?: Skill;
+  registrySkill?: RegistrySkill;
+}
+
+export interface SkillSearchState {
+  status: SkillSearchStatus;
+  query: string;
+  surface: SkillSearchSurface | null;
+  results: SkillSearchResultItem[];
+  suggestions: string[];
+  expandedQueries: string[];
+  externalSearched: boolean;
+  error?: string;
+  updatedAt?: number;
+}
+
+export interface SkillSearchContext {
+  surface: SkillSearchSurface;
+  language: string;
 }
 
 export type RegistrySkillUpdateResult =
@@ -325,6 +372,168 @@ function copyReadySkillInsightCacheForInstalledSkill(
   }
 
   return copied ? pruneSkillInsightCache(nextCache) : cache;
+}
+
+function createIdleSkillSearchState(): SkillSearchState {
+  return {
+    status: "idle",
+    query: "",
+    surface: null,
+    results: [],
+    suggestions: [],
+    expandedQueries: [],
+    externalSearched: false,
+  };
+}
+
+function resolveInstalledSkillInsightEntry(
+  state: SkillState,
+  skill: Skill,
+  language: string,
+): SkillInsightCacheEntry | null {
+  const content = skill.content || skill.instructions || "";
+  if (!content.trim()) {
+    return null;
+  }
+  const insightSkill = createInstalledSkillInsightSkill(
+    skill,
+    content,
+    skill.description,
+  );
+  return state.getSkillInsight(insightSkill, language);
+}
+
+function isRegistrySkillInstalled(state: SkillState, skill: RegistrySkill): boolean {
+  const installName = (skill.install_name || skill.slug).toLowerCase();
+  return state.skills.some((installedSkill) => {
+    if (installedSkill.registry_slug === skill.slug) {
+      return true;
+    }
+    if (skill.source_id && installedSkill.registry_slug === skill.source_id) {
+      return true;
+    }
+    return installedSkill.name.toLowerCase() === installName;
+  });
+}
+
+function getStoreSearchSkillEntries(
+  state: SkillState,
+  options: { respectCategory: boolean },
+): Array<{ skill: RegistrySkill; sourceId: string }> {
+  const entries: Array<{ skill: RegistrySkill; sourceId: string }> =
+    state.registrySkills.map((skill) => ({ skill, sourceId: "official" }));
+
+  for (const [sourceId, entry] of Object.entries(state.remoteStoreEntries)) {
+    for (const skill of entry.skills) {
+      entries.push({ skill, sourceId });
+    }
+  }
+
+  if (!options.respectCategory || state.storeCategory === "all") {
+    return entries;
+  }
+
+  return entries.filter(({ skill }) => skill.category === state.storeCategory);
+}
+
+function buildSkillSearchCandidates(
+  state: SkillState,
+  context: SkillSearchContext,
+): {
+  candidates: SkillSearchCandidate[];
+  installedByCandidateId: Map<string, Skill>;
+  registryByCandidateId: Map<string, RegistrySkill>;
+} {
+  const candidates: SkillSearchCandidate[] = [];
+  const installedByCandidateId = new Map<string, Skill>();
+  const registryByCandidateId = new Map<string, RegistrySkill>();
+
+  const installedSkills =
+    context.surface === "my-skills" ? state.skills : state.skills;
+  for (const skill of installedSkills) {
+    const candidate = buildInstalledSkillSearchCandidate(
+      skill,
+      resolveInstalledSkillInsightEntry(state, skill, context.language),
+    );
+    candidates.push(candidate);
+    installedByCandidateId.set(candidate.id, skill);
+  }
+
+  const registryEntries = getStoreSearchSkillEntries(state, {
+    respectCategory: context.surface === "store",
+  });
+  for (const { skill, sourceId } of registryEntries) {
+    const candidate = buildRegistrySkillSearchCandidate(skill, {
+      insightEntry: state.getSkillInsight(skill, context.language),
+      isInstalled: isRegistrySkillInstalled(state, skill),
+      sourceId,
+    });
+    candidates.push(candidate);
+    registryByCandidateId.set(candidate.id, skill);
+  }
+
+  return {
+    candidates: dedupeSkillSearchCandidates(candidates),
+    installedByCandidateId,
+    registryByCandidateId,
+  };
+}
+
+function buildExternalSkillSearchCandidates(
+  state: SkillState,
+  language: string,
+  externalSkills: RegistrySkill[],
+): {
+  candidates: SkillSearchCandidate[];
+  registryByCandidateId: Map<string, RegistrySkill>;
+} {
+  const candidates: SkillSearchCandidate[] = [];
+  const registryByCandidateId = new Map<string, RegistrySkill>();
+  for (const skill of externalSkills) {
+    const rawSourceId = skill.source_id || "";
+    const sourceId =
+      rawSourceId && state.remoteStoreEntries[rawSourceId]
+        ? rawSourceId
+        : state.registrySkills.some((item) => item.slug === skill.slug)
+          ? "official"
+          : "community";
+    const candidate = buildRegistrySkillSearchCandidate(skill, {
+      insightEntry: state.getSkillInsight(skill, language),
+      isInstalled: isRegistrySkillInstalled(state, skill),
+      sourceId,
+    });
+    candidates.push(candidate);
+    registryByCandidateId.set(candidate.id, skill);
+  }
+  return {
+    candidates: dedupeSkillSearchCandidates(candidates),
+    registryByCandidateId,
+  };
+}
+
+function materializeSkillSearchResults(
+  response: SkillSearchResponse,
+  candidates: SkillSearchCandidate[],
+  installedByCandidateId: Map<string, Skill>,
+  registryByCandidateId: Map<string, RegistrySkill>,
+): SkillSearchResultItem[] {
+  const candidatesById = new Map(
+    candidates.map((candidate) => [candidate.id, candidate]),
+  );
+  return response.results
+    .map((result): SkillSearchResultItem | null => {
+      const candidate = candidatesById.get(result.candidateId);
+      if (!candidate) {
+        return null;
+      }
+      return {
+        candidate,
+        result,
+        skill: installedByCandidateId.get(result.candidateId),
+        registrySkill: registryByCandidateId.get(result.candidateId),
+      };
+    })
+    .filter((item): item is SkillSearchResultItem => item !== null);
 }
 
 function getRegistrySkillCandidates(state: SkillState): RegistrySkill[] {
@@ -693,11 +902,13 @@ interface SkillState {
       loadedAt: number;
       expiresAt?: number;
       error?: string | null;
+      query?: string;
       skills: RegistrySkill[];
     }
   >;
   skillInsightCache: Record<string, SkillInsightCacheEntry>;
   isSkillInsightCacheHydrated: boolean;
+  skillSearchState: SkillSearchState;
 
   // Actions
   loadSkills: () => Promise<void>;
@@ -783,6 +994,7 @@ interface SkillState {
       loadedAt: number;
       expiresAt?: number;
       error?: string | null;
+      query?: string;
       skills: RegistrySkill[];
     },
   ) => void;
@@ -807,6 +1019,15 @@ interface SkillState {
     language: string,
   ) => Promise<SkillInsight | null>;
   clearSkillInsight: (skill: RegistrySkill, language: string) => void;
+  searchSkillsWithAI: (
+    query: string,
+    context: SkillSearchContext,
+  ) => Promise<void>;
+  refreshSkillSearch: (
+    query?: string,
+    context?: SkillSearchContext,
+  ) => Promise<void>;
+  clearSkillSearch: () => void;
 
   // Deployed tracking
   // 已分发到平台的技能名称集合
@@ -858,6 +1079,7 @@ export const useSkillStore = create<SkillState>()(
       remoteStoreEntries: {},
       skillInsightCache: {} as Record<string, SkillInsightCacheEntry>,
       isSkillInsightCacheHydrated: false,
+      skillSearchState: createIdleSkillSearchState(),
 
       loadSkills: async () => {
         set({ isLoading: true, error: null });
@@ -1333,6 +1555,10 @@ export const useSkillStore = create<SkillState>()(
           deployedSkillNames,
           filterTags,
           filterType,
+          getInsightSearchText: (skill) =>
+            buildSkillInsightSearchText(
+              resolveInstalledSkillInsightEntry(get(), skill, useSettingsStore.getState().language),
+            ),
           searchQuery,
           skills,
           storeView,
@@ -1987,6 +2213,280 @@ export const useSkillStore = create<SkillState>()(
           return { skillInsightCache: nextCache };
         });
         void deleteSkillInsightCacheFromDatabase(key);
+      },
+
+      searchSkillsWithAI: async (query, context) => {
+        const trimmedQuery = query.trim();
+        const requestId = (skillSearchRequestSeq += 1);
+
+        if (!shouldTriggerSkillAISearch(trimmedQuery)) {
+          set({ skillSearchState: createIdleSkillSearchState() });
+          return;
+        }
+
+        if (!get().isSkillInsightCacheHydrated) {
+          await get().loadSkillInsightCache();
+        }
+
+        const initialState = get();
+        const {
+          candidates: baseCandidates,
+          installedByCandidateId,
+          registryByCandidateId,
+        } = buildSkillSearchCandidates(initialState, context);
+        const rankedBaseCandidates = rankSkillSearchCandidatesForPrompt(
+          baseCandidates,
+          trimmedQuery,
+        );
+
+        if (rankedBaseCandidates.length === 0) {
+          set({
+            skillSearchState: {
+              status: "ready",
+              query: trimmedQuery,
+              surface: context.surface,
+              results: [],
+              suggestions: [],
+              expandedQueries: [],
+              externalSearched: false,
+              updatedAt: Date.now(),
+            },
+          });
+          return;
+        }
+
+        set({
+          skillSearchState: {
+            status: "loading",
+            query: trimmedQuery,
+            surface: context.surface,
+            results: initialState.skillSearchState.results,
+            suggestions: initialState.skillSearchState.suggestions,
+            expandedQueries: initialState.skillSearchState.expandedQueries,
+            externalSearched: false,
+            updatedAt: Date.now(),
+          },
+        });
+
+        const settingsState = useSettingsStore.getState();
+        if (!settingsState.skillSearchEnabled || !settingsState.skillSearchConfirmed) {
+          set({
+            skillSearchState: {
+              status: "idle",
+              query: trimmedQuery,
+              surface: context.surface,
+              results: [],
+              suggestions: [],
+              expandedQueries: [],
+              externalSearched: false,
+              updatedAt: Date.now(),
+            },
+          });
+          return;
+        }
+
+        const searchModel = resolveScenarioModel(
+          settingsState.aiModels,
+          settingsState.scenarioModelDefaults,
+          "skillSearch",
+          "chat",
+        );
+        const config = searchModel
+          ? {
+              provider: searchModel.provider,
+              apiKey: searchModel.apiKey,
+              apiUrl: searchModel.apiUrl,
+              model: searchModel.model,
+              chatParams: searchModel.chatParams as SkillChatParams | undefined,
+            }
+          : {
+              provider: settingsState.aiProvider,
+              apiKey: settingsState.aiApiKey,
+              apiUrl: settingsState.aiApiUrl,
+              model: settingsState.aiModel,
+            };
+
+        let response = createFallbackSkillSearchResponse(
+          trimmedQuery,
+          rankedBaseCandidates,
+        );
+        let error: string | undefined;
+        let aiSucceeded = false;
+
+        if (!config.apiKey || !config.apiUrl || !config.model) {
+          error = "AI_NOT_CONFIGURED";
+        } else {
+          try {
+            const result = await chatCompletion(
+              config,
+              buildSkillSearchMessages(
+                trimmedQuery,
+                rankedBaseCandidates,
+                context.language,
+              ),
+              {
+                temperature: 0.1,
+                maxTokens: 1800,
+                responseFormat: { type: "json_object" },
+              },
+            );
+            if (!result.content) {
+              throw new Error("SKILL_SEARCH_EMPTY_RESPONSE");
+            }
+            response = parseSkillSearchResponse(
+              result.content,
+              rankedBaseCandidates,
+            );
+            aiSucceeded = true;
+          } catch (err) {
+            error = getErrorMessage(err);
+          }
+        }
+
+        let combinedCandidates = rankedBaseCandidates;
+        let combinedRegistryByCandidateId = new Map(registryByCandidateId);
+        let externalSearched = false;
+
+        if (aiSucceeded && shouldExpandSkillSearch(response)) {
+          externalSearched = true;
+          try {
+            const communityResponse =
+              typeof window.api.skill.loadSkillsShStore === "function"
+                ? await window.api.skill.loadSkillsShStore({
+                    apiKey: settingsState.skillsShApiKey,
+                    query: trimmedQuery,
+                    limit: SKILL_SEARCH_EXTERNAL_LIMIT,
+                    includeDuplicates: false,
+                    includeIncomplete: false,
+                  })
+                : null;
+            const communitySkills =
+              communityResponse?.skills.map((skill) => ({
+                ...skill,
+                source_id: "community",
+              })) ?? [];
+            if (communitySkills.length > 0) {
+              const existingCommunity =
+                get().remoteStoreEntries.community?.skills ?? [];
+              set((state) => ({
+                remoteStoreEntries: {
+                  ...state.remoteStoreEntries,
+                  community: {
+                    loadedAt: Date.now(),
+                    expiresAt:
+                      communityResponse?.cacheMaxAgeSeconds !== undefined
+                        ? Date.now() + communityResponse.cacheMaxAgeSeconds * 1000
+                        : state.remoteStoreEntries.community?.expiresAt,
+                    error: null,
+                    query: trimmedQuery,
+                    skills: dedupeRegistrySkillList([
+                      ...existingCommunity,
+                      ...communitySkills,
+                    ]),
+                  },
+                },
+              }));
+            }
+
+            const externalSkills = dedupeRegistrySkillList([
+              ...get().registrySkills,
+              ...Object.values(get().remoteStoreEntries).flatMap(
+                (entry) => entry.skills,
+              ),
+              ...communitySkills,
+            ]);
+            const external = buildExternalSkillSearchCandidates(
+              get(),
+              context.language,
+              externalSkills,
+            );
+            combinedRegistryByCandidateId = new Map([
+              ...combinedRegistryByCandidateId,
+              ...external.registryByCandidateId,
+            ]);
+            combinedCandidates = rankSkillSearchCandidatesForPrompt(
+              dedupeSkillSearchCandidates([
+                ...rankedBaseCandidates,
+                ...external.candidates,
+              ]),
+              trimmedQuery,
+            );
+
+            if (combinedCandidates.length > rankedBaseCandidates.length) {
+              const expandedResult = await chatCompletion(
+                config,
+                buildSkillSearchMessages(
+                  trimmedQuery,
+                  combinedCandidates,
+                  context.language,
+                ),
+                {
+                  temperature: 0.1,
+                  maxTokens: 2000,
+                  responseFormat: { type: "json_object" },
+                },
+              );
+              if (expandedResult.content) {
+                response = mergeSkillSearchResponses(
+                  response,
+                  parseSkillSearchResponse(
+                    expandedResult.content,
+                    combinedCandidates,
+                  ),
+                );
+              }
+            }
+          } catch (err) {
+            console.warn("Skill search external expansion failed:", err);
+          }
+        }
+
+        if (requestId !== skillSearchRequestSeq) {
+          return;
+        }
+
+        const results = materializeSkillSearchResults(
+          response,
+          combinedCandidates,
+          installedByCandidateId,
+          combinedRegistryByCandidateId,
+        );
+
+        set({
+          skillSearchState: {
+            status: error && !aiSucceeded ? "error" : "ready",
+            query: trimmedQuery,
+            surface: context.surface,
+            results,
+            suggestions: response.suggestions,
+            expandedQueries: response.expandedQueries,
+            externalSearched,
+            error,
+            updatedAt: Date.now(),
+          },
+        });
+      },
+
+      refreshSkillSearch: async (query, context) => {
+        const state = get();
+        const nextQuery = query ?? state.skillSearchState.query;
+        const nextContext =
+          context ??
+          (state.skillSearchState.surface
+            ? {
+                surface: state.skillSearchState.surface,
+                language: useSettingsStore.getState().language,
+              }
+            : null);
+        if (!nextContext) {
+          return;
+        }
+        await state.searchSkillsWithAI(nextQuery, nextContext);
+      },
+
+      clearSkillSearch: () => {
+        skillSearchRequestSeq += 1;
+        set({ skillSearchState: createIdleSkillSearchState() });
       },
 
       // ─── Translation / 翻译 ───

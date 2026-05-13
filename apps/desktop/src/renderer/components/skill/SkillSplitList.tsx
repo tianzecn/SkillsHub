@@ -38,11 +38,11 @@ import {
 import type { Skill, SkillSafetyLevel } from "@prompthub/shared/types";
 import type { SkillPlatform } from "@prompthub/shared/constants/platforms";
 import { getRuntimeCapabilities } from "../../runtime";
+import { shouldTriggerSkillOnlineSearch } from "../../services/skill-search";
 
 const VIRTUALIZATION_THRESHOLD = 200;
 const ROW_HEIGHT = 84;
 const skillSplitPlatformStatusCache = new Map<string, Record<string, boolean>>();
-
 interface SkillSplitListProps {
   skills: Skill[];
   allSkills: Skill[];
@@ -323,6 +323,11 @@ export function SkillSplitList({
   const toggleFilterTag = useSkillStore((state) => state.toggleFilterTag);
   const clearFilterTags = useSkillStore((state) => state.clearFilterTags);
   const storeView = useSkillStore((state) => state.storeView);
+  const setStoreView = useSkillStore((state) => state.setStoreView);
+  const setStoreSearchQuery = useSkillStore(
+    (state) => state.setStoreSearchQuery,
+  );
+  const selectStoreSource = useSkillStore((state) => state.selectStoreSource);
   const [platformStatuses, setPlatformStatuses] = useState<
     Record<string, Record<string, boolean>>
   >({});
@@ -480,6 +485,16 @@ export function SkillSplitList({
       : []),
   ];
   const useVirtualRows = skills.length >= VIRTUALIZATION_THRESHOLD;
+  const shouldShowOnlineSearch =
+    runtimeCapabilities.skillStore && shouldTriggerSkillOnlineSearch(searchQuery);
+
+  const openOnlineSkillSearch = () => {
+    if (!shouldShowOnlineSearch) return;
+    setStoreSearchQuery(searchQuery);
+    selectStoreSource("community");
+    setStoreView("store");
+    onOpenStore?.();
+  };
 
   return (
     <div className="flex h-full min-h-0 flex-col bg-card/40">
@@ -620,6 +635,27 @@ export function SkillSplitList({
           </div>
         </div>
       </div>
+
+      {shouldShowOnlineSearch ? (
+        <div className="border-b border-border bg-background/40 p-3">
+          <div className="flex items-center justify-between gap-3 rounded-lg border border-border bg-muted/30 px-3 py-2 text-xs">
+            <div className="min-w-0 text-muted-foreground">
+              {t(
+                "skill.searchOnlineDesc",
+                "Current results use loaded sources and cached AI insights. Online search queries skills.sh without calling AI.",
+              )}
+            </div>
+            <button
+              type="button"
+              onClick={openOnlineSkillSearch}
+              className="inline-flex h-8 shrink-0 items-center gap-2 rounded-md border border-border bg-background px-3 font-medium text-foreground transition-colors hover:bg-accent"
+            >
+              <StoreIcon className="h-3.5 w-3.5" />
+              {t("skill.searchOnlineButton", "Find online")}
+            </button>
+          </div>
+        </div>
+      ) : null}
 
       {skills.length === 0 ? (
         <div className="flex h-full flex-col items-center justify-center p-8 text-center text-muted-foreground">

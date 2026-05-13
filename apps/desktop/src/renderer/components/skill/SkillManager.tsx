@@ -20,6 +20,8 @@ import { useToast } from "../ui/Toast";
 import type { Skill, ScannedSkill } from "@prompthub/shared/types";
 import { updateSkillTags, type SkillBatchTagMode } from "./batch-utils";
 import { filterVisibleSkills } from "../../services/skill-filter";
+import { createInstalledSkillInsightSkill } from "../../services/skill-insight";
+import { buildSkillInsightSearchText } from "../../services/skill-search";
 import { getRuntimeCapabilities } from "../../runtime";
 
 // Progressive rendering thresholds for the visible skill list.
@@ -50,7 +52,7 @@ const SkillBatchTagDialog = lazy(() =>
 );
 
 export function SkillManager() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { showToast } = useToast();
   const skills = useSkillStore((state) => state.skills);
   const loadSkills = useSkillStore((state) => state.loadSkills);
@@ -66,6 +68,8 @@ export function SkillManager() {
   const deployedSkillNames = useSkillStore((state) => state.deployedSkillNames);
   const loadDeployedStatus = useSkillStore((state) => state.loadDeployedStatus);
   const skillFilterTags = useSkillStore((state) => state.filterTags);
+  const getSkillInsight = useSkillStore((state) => state.getSkillInsight);
+  const skillInsightCache = useSkillStore((state) => state.skillInsightCache);
   const customSkillScanPaths = useSettingsStore(
     (state) => state.customSkillScanPaths,
   );
@@ -89,6 +93,15 @@ export function SkillManager() {
       deployedSkillNames,
       filterTags: skillFilterTags,
       filterType: effectiveFilterType,
+      getInsightSearchText: (skill) => {
+        const content = skill.content || skill.instructions || "";
+        if (!content.trim()) return "";
+        const entry = getSkillInsight(
+          createInstalledSkillInsightSkill(skill, content, skill.description),
+          i18n.language,
+        );
+        return buildSkillInsightSearchText(entry);
+      },
       searchQuery,
       skills,
       storeView: effectiveStoreView,
@@ -97,7 +110,10 @@ export function SkillManager() {
     deployedSkillNames,
     effectiveFilterType,
     effectiveStoreView,
+    getSkillInsight,
+    i18n.language,
     skillFilterTags,
+    skillInsightCache,
     searchQuery,
     skills,
   ]);

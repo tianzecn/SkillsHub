@@ -42,6 +42,15 @@ const resetSkillStore = () => {
     remoteStoreEntries: {},
     skillInsightCache: {},
     isSkillInsightCacheHydrated: false,
+    skillSearchState: {
+      status: "idle",
+      query: "",
+      surface: null,
+      results: [],
+      suggestions: [],
+      expandedQueries: [],
+      externalSearched: false,
+    },
     translationCache: {},
   });
   localStorage.clear();
@@ -60,6 +69,8 @@ describe("skill store", () => {
       scenarioModelDefaults: {},
       skillInsightAutoGenerateEnabled: false,
       skillInsightAutoGenerateConfirmed: false,
+      skillSearchEnabled: false,
+      skillSearchConfirmed: false,
     } as Partial<ReturnType<typeof useSettingsStore.getState>>);
     installWindowMocks({
       api: {
@@ -1002,6 +1013,244 @@ description: Use this skill for PDF tasks.
       }
 
       expect(Object.keys(filteredEntries)).toHaveLength(0);
+    });
+  });
+
+  describe("skill AI search", () => {
+    const createRegistrySkill = (
+      overrides: Partial<RegistrySkill> = {},
+    ): RegistrySkill => ({
+      slug: "base-skill",
+      name: "Base Skill",
+      description: "Helps with document workflows",
+      category: "office",
+      author: "PromptHub",
+      source_url: "https://example.com/base-skill",
+      tags: ["docs"],
+      version: "1.0.0",
+      content: "# Base Skill",
+      ...overrides,
+    });
+
+    it("does not trigger AI below the minimum query threshold", async () => {
+      useSkillStore.setState({
+        skills: [
+          createSkillFixture({
+            id: "skill-doc",
+            name: "Document Skill",
+            description: "Document workflow helper",
+            content: "# Document Skill",
+          }),
+        ],
+        isSkillInsightCacheHydrated: true,
+      });
+
+      await useSkillStore.getState().searchSkillsWithAI("ai", {
+        surface: "my-skills",
+        language: "zh",
+      });
+
+      expect(chatCompletionMock).not.toHaveBeenCalled();
+      expect(useSkillStore.getState().skillSearchState.status).toBe("idle");
+    });
+
+    it("falls back to local scoring when the AI call fails", async () => {
+      useSettingsStore.setState({
+        skillSearchEnabled: true,
+        skillSearchConfirmed: true,
+        aiModels: [
+          {
+            id: "search-model",
+            type: "chat",
+            provider: "openai",
+            apiKey: "key",
+            apiUrl: "https://api.example.com",
+            model: "gpt-test",
+            isDefault: true,
+          },
+        ],
+        scenarioModelDefaults: { skillSearch: "search-model" },
+      } as Partial<ReturnType<typeof useSettingsStore.getState>>);
+      chatCompletionMock.mockRejectedValue(new Error("temporary failure"));
+      useSkillStore.setState({
+        skills: [
+          createSkillFixture({
+            id: "skill-doc",
+            name: "Document Skill",
+            description: "Document workflow helper",
+            content: "# Document Skill",
+          }),
+        ],
+        isSkillInsightCacheHydrated: true,
+      });
+
+      await useSkillStore.getState().searchSkillsWithAI("doc", {
+        surface: "my-skills",
+        language: "en",
+      });
+
+      const state = useSkillStore.getState().skillSearchState;
+      expect(state.status).toBe("error");
+      expect(state.results[0]?.skill?.id).toBe("skill-doc");
+      expect(chatCompletionMock).toHaveBeenCalledTimes(1);
+    });
+
+    it("uses loaded store sources beyond the currently selected source", async () => {
+      useSettingsStore.setState({
+        skillSearchEnabled: true,
+        skillSearchConfirmed: true,
+        aiModels: [
+          {
+            id: "search-model",
+            type: "chat",
+            provider: "openai",
+            apiKey: "key",
+            apiUrl: "https://api.example.com",
+            model: "gpt-test",
+            isDefault: true,
+          },
+        ],
+        scenarioModelDefaults: { skillSearch: "search-model" },
+      } as Partial<ReturnType<typeof useSettingsStore.getState>>);
+      chatCompletionMock.mockResolvedValue({
+        content: JSON.stringify({
+          expandedQueries: ["spreadsheet"],
+          results: [
+            {
+              candidateId: "registry:community:sheet-skill",
+              score: 93,
+              confidence: "high",
+              reason: "Matches spreadsheet automation from another source.",
+              matchedKeywords: ["sheet"],
+              weakMatch: false,
+            },
+          ],
+          suggestions: [],
+          needsExternalSearch: false,
+        }),
+      } as any);
+      useSkillStore.setState({
+        selectedStoreSourceId: "official",
+        registrySkills: [
+          createRegistrySkill({
+            slug: "doc-skill",
+            name: "Doc Skill",
+            description: "Document workflow helper",
+          }),
+        ],
+        remoteStoreEntries: {
+          community: {
+            loadedAt: 1,
+            skills: [
+              createRegistrySkill({
+                slug: "sheet-skill",
+                name: "Sheet Skill",
+                description: "Automates spreadsheet workflows",
+                tags: ["spreadsheet"],
+              }),
+            ],
+          },
+        },
+        isSkillInsightCacheHydrated: true,
+      });
+
+      await useSkillStore.getState().searchSkillsWithAI("sheet", {
+        surface: "store",
+        language: "en",
+      });
+
+      const state = useSkillStore.getState().skillSearchState;
+      expect(state.results[0]?.registrySkill?.slug).toBe("sheet-skill");
+      expect(state.results[0]?.candidate.sourceId).toBe("community");
+      expect(chatCompletionMock).toHaveBeenCalledTimes(1);
+    });
+
+    it("expands to skills.sh when AI marks the first pass low confidence", async () => {
+      useSettingsStore.setState({
+        skillSearchEnabled: true,
+        skillSearchConfirmed: true,
+        aiModels: [
+          {
+            id: "search-model",
+            type: "chat",
+            provider: "openai",
+            apiKey: "key",
+            apiUrl: "https://api.example.com",
+            model: "gpt-test",
+            isDefault: true,
+          },
+        ],
+        scenarioModelDefaults: { skillSearch: "search-model" },
+      } as Partial<ReturnType<typeof useSettingsStore.getState>>);
+      chatCompletionMock
+        .mockResolvedValueOnce({
+          content: JSON.stringify({
+            expandedQueries: ["spreadsheet"],
+            results: [
+              {
+                candidateId: "registry:official:base-skill",
+                score: 28,
+                confidence: "low",
+                reason: "Only a weak document workflow match.",
+                matchedKeywords: ["sheet"],
+                weakMatch: true,
+              },
+            ],
+            suggestions: ["spreadsheet automation"],
+            needsExternalSearch: true,
+          }),
+        } as any)
+        .mockResolvedValueOnce({
+          content: JSON.stringify({
+            expandedQueries: ["spreadsheet"],
+            results: [
+              {
+                candidateId: "registry:community:sheet-skill",
+                score: 92,
+                confidence: "high",
+                reason: "Directly matches spreadsheet automation.",
+                matchedKeywords: ["spreadsheet"],
+                weakMatch: false,
+              },
+            ],
+            suggestions: [],
+            needsExternalSearch: false,
+          }),
+        } as any);
+      const loadSkillsShStore = vi.fn().mockResolvedValue({
+        skills: [
+          createRegistrySkill({
+            slug: "sheet-skill",
+            name: "Sheet Skill",
+            description: "Automates spreadsheet workflows",
+            tags: ["spreadsheet"],
+          }),
+        ],
+        mode: "api",
+        source: "api-v1",
+      });
+      (window as any).api.skill.loadSkillsShStore = loadSkillsShStore;
+      useSkillStore.setState({
+        registrySkills: [createRegistrySkill()],
+        isSkillInsightCacheHydrated: true,
+      });
+
+      await useSkillStore.getState().searchSkillsWithAI("sheet", {
+        surface: "store",
+        language: "en",
+      });
+
+      const state = useSkillStore.getState();
+      expect(loadSkillsShStore).toHaveBeenCalledWith(
+        expect.objectContaining({ query: "sheet" }),
+      );
+      expect(state.skillSearchState.externalSearched).toBe(true);
+      expect(state.skillSearchState.results[0]?.registrySkill?.slug).toBe(
+        "sheet-skill",
+      );
+      expect(state.remoteStoreEntries.community?.skills[0]?.slug).toBe(
+        "sheet-skill",
+      );
     });
   });
 

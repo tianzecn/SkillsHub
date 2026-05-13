@@ -1,23 +1,23 @@
-export const RELEASE_VERSION = "0.8.1";
-export const RELEASE_TAG = "v0.8.1";
+export const RELEASE_VERSION = "0.9.0";
+export const RELEASE_TAG = "v0.9.0";
 export const RELEASE_DATE = "2026-05-13";
 
 export const HERO_VERSION_BADGE = {
-  zh: "v0.8.1 版已发布",
-  en: "v0.8.1 Released",
+  zh: "v0.9.0 版已发布",
+  en: "v0.9.0 Released",
 } as const;
 
 export const RELEASE_DOWNLOAD_URLS = {
   macArm64:
-    "https://github.com/tianzecn/SkillsHub/releases/latest/download/PromptHub-0.8.1-arm64.dmg",
+    "https://github.com/tianzecn/SkillsHub/releases/latest/download/PromptHub-0.9.0-arm64.dmg",
   macX64:
-    "https://github.com/tianzecn/SkillsHub/releases/latest/download/PromptHub-0.8.1-x64.dmg",
+    "https://github.com/tianzecn/SkillsHub/releases/latest/download/PromptHub-0.9.0-x64.dmg",
   windowsX64:
-    "https://github.com/tianzecn/SkillsHub/releases/latest/download/PromptHub-Setup-0.8.1-x64.exe",
+    "https://github.com/tianzecn/SkillsHub/releases/latest/download/PromptHub-Setup-0.9.0-x64.exe",
   windowsArm64:
-    "https://github.com/tianzecn/SkillsHub/releases/latest/download/PromptHub-Setup-0.8.1-arm64.exe",
+    "https://github.com/tianzecn/SkillsHub/releases/latest/download/PromptHub-Setup-0.9.0-arm64.exe",
   linuxAppImage:
-    "https://github.com/tianzecn/SkillsHub/releases/latest/download/PromptHub-0.8.1-x64.AppImage",
+    "https://github.com/tianzecn/SkillsHub/releases/latest/download/PromptHub-0.9.0-x64.AppImage",
   linuxDeb:
-    "https://github.com/tianzecn/SkillsHub/releases/latest/download/PromptHub-0.8.1-amd64.deb",
+    "https://github.com/tianzecn/SkillsHub/releases/latest/download/PromptHub-0.9.0-amd64.deb",
 } as const;

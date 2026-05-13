@@ -8,6 +8,7 @@ interface FilterVisibleSkillsOptions {
   deployedSkillNames: Set<string>;
   filterTags?: string[];
   filterType: SkillFilterType;
+  getInsightSearchText?: (skill: Skill) => string;
   searchQuery?: string;
   skills: Skill[];
   storeView: SkillStoreView;
@@ -17,6 +18,7 @@ export function filterVisibleSkills({
   deployedSkillNames,
   filterTags = [],
   filterType,
+  getInsightSearchText,
   searchQuery = "",
   skills,
   storeView,
@@ -56,6 +58,7 @@ export function filterVisibleSkills({
       skill.content || "",
       skill.source_url || "",
       skill.local_repo_path || "",
+      getInsightSearchText?.(skill) || "",
       ...(skill.tags || []),
     ];
 

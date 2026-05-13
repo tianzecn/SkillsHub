@@ -850,7 +850,12 @@
     "skillsShCommunitySource": "skills.sh Community Source",
     "skillsShApiKey": "skills.sh API Key",
     "skillsShApiKeyPlaceholder": "Optional API key, e.g. sk_live_...",
-    "skillsShApiKeyDesc": "Optional. Used only when loading the built-in skills.sh community source. It is stored with your local PromptHub settings, the same way local model API keys are stored."
+    "skillsShApiKeyDesc": "Optional. Used only when loading the built-in skills.sh community source. It is stored with your local PromptHub settings, the same way local model API keys are stored.",
+    "aiWorkbenchScenarioSkillSearch": "Skill Search / AI Skill Finder",
+    "aiWorkbenchScenarioSkillSearchDesc": "Reranks skills from the query, candidate summaries, and cached insights, then expands to external sources when needed.",
+    "aiWorkbenchBadgeSkillSearch": "Skill Search",
+    "skillSearchEnabled": "Enable AI skill search",
+    "skillSearchEnabledDesc": "After typing pauses, rerank current results with AI and query external skill sources when needed."
   },
   "import": {
     "clipboardTitle": "Import Prompt from Clipboard",
@@ -1471,7 +1476,41 @@
     "insightGenerateOnRefresh": "Click Refresh insight to generate AI guidance for this installed skill.",
     "insightExampleExplicit": "Explicit",
     "insightExampleNatural": "Natural",
-    "insightExampleBoundary": "Boundary"
+    "insightExampleBoundary": "Boundary",
+    "searchConsentTitle": "Enable automatic AI skill search?",
+    "searchConsentDesc": "PromptHub will send the search term, candidate summaries, and cached AI insights to your configured AI service. When results are sparse, it may query external skill sources and consume tokens.",
+    "searchEnable": "Enable AI search",
+    "searchAiResultsTitle": "AI Search Results",
+    "searchAiResultsDesc": "Semantic matches and external suggestions for \"{{query}}\"",
+    "searchRefresh": "Search again",
+    "searchAiNotConfigured": "AI search is enabled, but no Skill Search model is configured. Showing local matches first.",
+    "searchAiFailed": "AI search failed for now, so local matches are shown instead.",
+    "searchOnlineTitle": "Need more matches?",
+    "searchOnlineDesc": "Current results use loaded sources and cached AI insights. Online search queries skills.sh without calling AI.",
+    "searchOnlineButton": "Find online",
+    "searchOnlineLoading": "Searching...",
+    "searchSource": {
+      "installed": "Installed",
+      "official": "Official",
+      "community": "Community",
+      "custom": "Custom",
+      "external": "External"
+    },
+    "searchWeakMatch": "Weak match",
+    "searchLocalMatchReason": "Matched local fields or cached AI insight.",
+    "searchConfidence": {
+      "high": "High confidence",
+      "medium": "Medium confidence",
+      "low": "Low confidence"
+    },
+    "searchSignalWeeklyInstalls": "{{value}}/wk",
+    "searchSignalGithubStars": "{{value}} stars",
+    "searchSignalAuditPass": "Audit pass",
+    "searchSignalAuditWarn": "Audit caution",
+    "searchSignalAuditFail": "Audit risk",
+    "searchSignalInsightCaution": "Caution",
+    "searchSignalInsightNotRecommended": "Not recommended",
+    "searchNoAiResults": "No stronger AI matches found"
   },
   "error": {
     "sha512Desc": "SHA512 checksum mismatch.\nThis is usually caused by CDN cache inconsistencies or network issues.\nThe file may have been downloaded successfully. You can try to install it manually."

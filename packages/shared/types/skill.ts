@@ -261,6 +261,68 @@ export interface SkillInsightCacheEntry {
   error?: string;
 }
 
+export type SkillSearchSource =
+  | "installed"
+  | "official"
+  | "community"
+  | "custom"
+  | "external";
+export type SkillSearchConfidence = "high" | "medium" | "low";
+export type SkillSearchQualitySignalType =
+  | "weekly-installs"
+  | "github-stars"
+  | "audit-pass"
+  | "audit-warn"
+  | "audit-fail"
+  | "insight-caution"
+  | "insight-not-recommended";
+export type SkillSearchQualitySignalTone =
+  | "neutral"
+  | "positive"
+  | "warning"
+  | "danger";
+
+export interface SkillSearchQualitySignal {
+  type: SkillSearchQualitySignalType;
+  value?: string;
+  tone: SkillSearchQualitySignalTone;
+}
+
+export interface SkillSearchCandidate {
+  id: string;
+  slug?: string;
+  name: string;
+  description: string;
+  tags: string[];
+  source: SkillSearchSource;
+  sourceId?: string;
+  isInstalled: boolean;
+  author?: string;
+  sourceUrl?: string;
+  storeUrl?: string;
+  insightSummary?: string;
+  insightVerdict?: SkillInsightVerdict;
+  insightConfidence?: SkillInsightConfidence;
+  qualitySignals: SkillSearchQualitySignal[];
+}
+
+export interface SkillSearchResult {
+  candidateId: string;
+  score: number;
+  confidence: SkillSearchConfidence;
+  reason: string;
+  matchedKeywords: string[];
+  weakMatch: boolean;
+  riskPenalty?: boolean;
+}
+
+export interface SkillSearchResponse {
+  expandedQueries: string[];
+  results: SkillSearchResult[];
+  suggestions: string[];
+  needsExternalSearch: boolean;
+}
+
 export type SkillsShCatalogView = "trending" | "all-time" | "hot" | "curated";
 
 export interface SkillsShStoreRequest {

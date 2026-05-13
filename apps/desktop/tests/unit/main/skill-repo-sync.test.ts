@@ -105,6 +105,26 @@ describe("buildSkillSyncUpdateFromRepo", () => {
     expect(next).not.toHaveProperty("description");
   });
 
+  it("preserves full SKILL.md content longer than import field limits", () => {
+    const longBody = "A".repeat(12_000);
+    const md = [
+      "---",
+      "description: Old description",
+      "version: 1.0.0",
+      "author: Local",
+      "tags: [general]",
+      "---",
+      "",
+      longBody,
+    ].join("\n");
+
+    const next = buildSkillSyncUpdateFromRepo(baseSkill, md);
+
+    expect(next?.instructions).toBe(md);
+    expect(next?.content).toBe(md);
+    expect(next?.instructions?.length).toBe(md.length);
+  });
+
   it("handles SKILL.md without frontmatter", () => {
     const md = "# Just a body\n\nNo frontmatter here.";
     const next = buildSkillSyncUpdateFromRepo(baseSkill, md);

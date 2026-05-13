@@ -1,4 +1,4 @@
-import { act, waitFor } from "@testing-library/react";
+import { act, fireEvent, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { SkillStore } from "../../../src/renderer/components/skill/SkillStore";
@@ -266,6 +266,189 @@ describe("SkillStore remote loading", () => {
       ([url]) => url === "https://api.github.com/repos/openai/skills",
     );
     expect(openAiRepoRequests).toHaveLength(0);
+  });
+
+  it("shows loaded remote source matches when searching from the official store", async () => {
+    installWindowMocks({
+      api: {
+        settings: {
+          get: vi.fn().mockResolvedValue({
+            device: {
+              storeAutoSync: false,
+              storeSyncCadence: "manual",
+            },
+          }),
+        },
+        skill: {
+          loadSkillsShStore: vi.fn().mockResolvedValue({
+            skills: [],
+            mode: "api",
+            source: "api",
+          }),
+          fetchRemoteContent: vi.fn(),
+          scanLocalPreview: vi.fn().mockResolvedValue([]),
+          scanSafety: vi.fn().mockResolvedValue({
+            level: "safe",
+            summary: "safe",
+            findings: [],
+            recommendedAction: "allow",
+            scannedAt: Date.now(),
+            checkedFileCount: 1,
+            scanMethod: "static",
+          }),
+        },
+      },
+    });
+
+    useSkillStore.setState({
+      selectedStoreSourceId: "official",
+      storeSearchQuery: "sheet",
+      registrySkills: [],
+      remoteStoreEntries: {
+        "claude-code": {
+          loadedAt: 1,
+          error: "cached failure",
+          skills: [],
+        },
+        "openai-codex": {
+          loadedAt: 1,
+          error: "cached failure",
+          skills: [],
+        },
+        "hermes-agent": {
+          loadedAt: 1,
+          error: "cached failure",
+          skills: [],
+        },
+        "hermes-agent-optional": {
+          loadedAt: 1,
+          error: "cached failure",
+          skills: [],
+        },
+        community: {
+          loadedAt: 1,
+          query: "sheet",
+          skills: [
+            {
+              slug: "sheet-runner",
+              source_id: "community",
+              source_type: "html",
+              name: "Sheet Runner",
+              description: "Automates spreadsheet checks",
+              category: "office",
+              author: "Community",
+              source_url: "https://skills.sh/demo/sheet-runner",
+              tags: ["spreadsheet"],
+              version: "1.0.0",
+              content: "# Sheet Runner",
+            },
+          ],
+        },
+      },
+    });
+
+    let view:
+      | Awaited<ReturnType<typeof renderWithI18n>>
+      | undefined;
+    await act(async () => {
+      view = await renderWithI18n(<SkillStore />, { language: "en" });
+    });
+
+    expect(await view?.findByText("Sheet Runner")).toBeInTheDocument();
+  });
+
+  it("loads skills.sh query results from another store only after manual online search", async () => {
+    const loadSkillsShStore = vi.fn().mockResolvedValue({
+      skills: [
+        {
+          slug: "postgres-helper",
+          source_id: "community",
+          source_type: "html",
+          name: "Postgres Helper",
+          description: "Database workflow skill",
+          category: "data",
+          author: "Community",
+          source_url: "https://skills.sh/demo/postgres-helper",
+          tags: ["database"],
+          version: "1.0.0",
+          content: "# Postgres Helper",
+        },
+      ],
+      mode: "api",
+      source: "api",
+    });
+
+    installWindowMocks({
+      api: {
+        settings: {
+          get: vi.fn().mockResolvedValue({
+            device: {
+              storeAutoSync: false,
+              storeSyncCadence: "manual",
+            },
+          }),
+        },
+        skill: {
+          loadSkillsShStore,
+          fetchRemoteContent: vi.fn(),
+          scanLocalPreview: vi.fn().mockResolvedValue([]),
+          scanSafety: vi.fn().mockResolvedValue({
+            level: "safe",
+            summary: "safe",
+            findings: [],
+            recommendedAction: "allow",
+            scannedAt: Date.now(),
+            checkedFileCount: 1,
+            scanMethod: "static",
+          }),
+        },
+      },
+    });
+
+    useSkillStore.setState({
+      selectedStoreSourceId: "official",
+      storeSearchQuery: "postgres",
+      registrySkills: [],
+      remoteStoreEntries: {
+        "claude-code": {
+          loadedAt: 1,
+          error: "cached failure",
+          skills: [],
+        },
+        "openai-codex": {
+          loadedAt: 1,
+          error: "cached failure",
+          skills: [],
+        },
+        "hermes-agent": {
+          loadedAt: 1,
+          error: "cached failure",
+          skills: [],
+        },
+        "hermes-agent-optional": {
+          loadedAt: 1,
+          error: "cached failure",
+          skills: [],
+        },
+      },
+    });
+
+    let view:
+      | Awaited<ReturnType<typeof renderWithI18n>>
+      | undefined;
+    await act(async () => {
+      view = await renderWithI18n(<SkillStore />, { language: "en" });
+    });
+
+    expect(loadSkillsShStore).not.toHaveBeenCalled();
+    fireEvent.click(await view!.findByText("Find online"));
+
+    await waitFor(() => {
+      expect(loadSkillsShStore).toHaveBeenCalledWith(
+        expect.objectContaining({ query: "postgres" }),
+      );
+    });
+    expect(await view?.findByText("Postgres Helper")).toBeInTheDocument();
   });
 
   it("loads the built-in OpenAI Codex store from the curated subdirectory", async () => {

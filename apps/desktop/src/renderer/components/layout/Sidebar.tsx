@@ -118,6 +118,8 @@ export function Sidebar({ currentPage, onNavigate }: SidebarProps) {
   const registrySkills = useSkillStore((state) => state.registrySkills);
   const selectedStoreSourceId = useSkillStore((state) => state.selectedStoreSourceId);
   const selectStoreSource = useSkillStore((state) => state.selectStoreSource);
+  const storeSearchQuery = useSkillStore((state) => state.storeSearchQuery);
+  const setStoreSearchQuery = useSkillStore((state) => state.setStoreSearchQuery);
   const customStoreSources = useSkillStore((state) => state.customStoreSources);
   const remoteStoreEntries = useSkillStore((state) => state.remoteStoreEntries);
   const skillFilterTags = useSkillStore((state) => state.filterTags);
@@ -210,6 +212,15 @@ export function Sidebar({ currentPage, onNavigate }: SidebarProps) {
     showHermesAgentOptionalStoreSource ||
     showCommunityStoreSource ||
     visibleCustomStoreSources.length > 0;
+
+  const handleStoreSourceSelect = useCallback(
+    (sourceId: string) => {
+      setStoreSearchQuery('');
+      selectStoreSource(sourceId);
+      if (currentPage !== 'home') onNavigate('home');
+    },
+    [currentPage, onNavigate, selectStoreSource, setStoreSearchQuery],
+  );
 
   const confirmLeaveDirtySkillEditor = useCallback(() => {
     const hasUnsaved = (
@@ -871,8 +882,7 @@ export function Sidebar({ currentPage, onNavigate }: SidebarProps) {
                   onClick={() => {
                     if (!confirmLeaveDirtySkillEditor()) return;
                     setStoreView('store');
-                    selectStoreSource(selectedStoreSourceId || 'official');
-                    if (currentPage !== 'home') onNavigate('home');
+                    handleStoreSourceSelect(selectedStoreSourceId || 'official');
                   }}
                 />
               </>
@@ -883,14 +893,14 @@ export function Sidebar({ currentPage, onNavigate }: SidebarProps) {
               <div className="relative mb-2 shrink-0">
                 <SearchIcon className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-sidebar-foreground/40" />
                 <input
-                  value={storeSourceSearchQuery}
-                  onChange={(event) => setStoreSourceSearchQuery(event.target.value)}
-                  placeholder={t('skill.searchStoreSources', 'Search stores...')}
+                  value={storeSearchQuery}
+                  onChange={(event) => setStoreSearchQuery(event.target.value)}
+                  placeholder={t('skill.searchStore', 'Search skills...')}
                   className="h-8 w-full rounded-md border border-sidebar-border/70 bg-sidebar-accent/30 pl-8 pr-7 text-xs text-sidebar-foreground outline-none transition-colors placeholder:text-sidebar-foreground/40 focus:border-primary/50 focus:bg-sidebar-accent/50"
                 />
-                {storeSourceSearchQuery ? (
+                {storeSearchQuery ? (
                   <button
-                    onClick={() => setStoreSourceSearchQuery('')}
+                    onClick={() => setStoreSearchQuery('')}
                     className="absolute right-1.5 top-1/2 -translate-y-1/2 rounded p-1 text-sidebar-foreground/40 hover:bg-sidebar-accent hover:text-sidebar-foreground"
                     title={t('common.clear', '清空')}
                   >
@@ -898,13 +908,10 @@ export function Sidebar({ currentPage, onNavigate }: SidebarProps) {
                   </button>
                 ) : null}
               </div>
-              <div className="max-h-[calc(100%-2.75rem)] space-y-1 overflow-y-auto overflow-x-hidden overscroll-contain pr-1 scrollbar-hide">
+              <div className="min-h-0 flex-1 space-y-1 overflow-y-auto overflow-x-hidden overscroll-contain pr-1 scrollbar-hide">
                 {showOfficialStoreSource && (
                   <button
-                    onClick={() => {
-                      selectStoreSource('official');
-                      if (currentPage !== 'home') onNavigate('home');
-                    }}
+                    onClick={() => handleStoreSourceSelect('official')}
                     className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors ${
                       selectedStoreSourceId === 'official'
                         ? 'bg-sidebar-accent text-sidebar-foreground'
@@ -922,10 +929,7 @@ export function Sidebar({ currentPage, onNavigate }: SidebarProps) {
                 )}
                 {showClaudeCodeStoreSource && (
                   <button
-                    onClick={() => {
-                      selectStoreSource('claude-code');
-                      if (currentPage !== 'home') onNavigate('home');
-                    }}
+                    onClick={() => handleStoreSourceSelect('claude-code')}
                     className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors ${
                       selectedStoreSourceId === 'claude-code'
                         ? 'bg-sidebar-accent text-sidebar-foreground'
@@ -943,10 +947,7 @@ export function Sidebar({ currentPage, onNavigate }: SidebarProps) {
                 )}
                 {showOpenAiCodexStoreSource && (
                   <button
-                    onClick={() => {
-                      selectStoreSource('openai-codex');
-                      if (currentPage !== 'home') onNavigate('home');
-                    }}
+                    onClick={() => handleStoreSourceSelect('openai-codex')}
                     className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors ${
                       selectedStoreSourceId === 'openai-codex'
                         ? 'bg-sidebar-accent text-sidebar-foreground'
@@ -964,10 +965,7 @@ export function Sidebar({ currentPage, onNavigate }: SidebarProps) {
                 )}
                 {showHermesAgentStoreSource && (
                   <button
-                    onClick={() => {
-                      selectStoreSource('hermes-agent');
-                      if (currentPage !== 'home') onNavigate('home');
-                    }}
+                    onClick={() => handleStoreSourceSelect('hermes-agent')}
                     className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors ${
                       selectedStoreSourceId === 'hermes-agent'
                         ? 'bg-sidebar-accent text-sidebar-foreground'
@@ -985,10 +983,7 @@ export function Sidebar({ currentPage, onNavigate }: SidebarProps) {
                 )}
                 {showHermesAgentOptionalStoreSource && (
                   <button
-                    onClick={() => {
-                      selectStoreSource('hermes-agent-optional');
-                      if (currentPage !== 'home') onNavigate('home');
-                    }}
+                    onClick={() => handleStoreSourceSelect('hermes-agent-optional')}
                     className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors ${
                       selectedStoreSourceId === 'hermes-agent-optional'
                         ? 'bg-sidebar-accent text-sidebar-foreground'
@@ -1006,10 +1001,7 @@ export function Sidebar({ currentPage, onNavigate }: SidebarProps) {
                 )}
                 {showCommunityStoreSource && (
                   <button
-                    onClick={() => {
-                      selectStoreSource('community');
-                      if (currentPage !== 'home') onNavigate('home');
-                    }}
+                    onClick={() => handleStoreSourceSelect('community')}
                     className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors ${
                       selectedStoreSourceId === 'community'
                         ? 'bg-sidebar-accent text-sidebar-foreground'
@@ -1028,10 +1020,7 @@ export function Sidebar({ currentPage, onNavigate }: SidebarProps) {
                 {visibleCustomStoreSources.map((source) => (
                   <button
                     key={source.id}
-                    onClick={() => {
-                      selectStoreSource(source.id);
-                      if (currentPage !== 'home') onNavigate('home');
-                    }}
+                    onClick={() => handleStoreSourceSelect(source.id)}
                     className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors ${
                       selectedStoreSourceId === source.id
                         ? 'bg-sidebar-accent text-sidebar-foreground'
@@ -1059,10 +1048,7 @@ export function Sidebar({ currentPage, onNavigate }: SidebarProps) {
                 )}
               </div>
               <button
-                onClick={() => {
-                  selectStoreSource('new-custom');
-                  if (currentPage !== 'home') onNavigate('home');
-                }}
+                onClick={() => handleStoreSourceSelect('new-custom')}
                 className={`mt-1 w-full shrink-0 flex items-center gap-2 px-3 py-2 rounded-lg border border-dashed text-sm transition-colors ${
                   selectedStoreSourceId === 'new-custom'
                     ? 'border-primary text-primary bg-primary/5'
@@ -1072,6 +1058,24 @@ export function Sidebar({ currentPage, onNavigate }: SidebarProps) {
                 <PlusIcon className="w-4 h-4" />
                 <span className="truncate">{t('skill.addStoreSource', '添加商店')}</span>
               </button>
+              <div className="relative mt-2 shrink-0">
+                <SearchIcon className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-sidebar-foreground/40" />
+                <input
+                  value={storeSourceSearchQuery}
+                  onChange={(event) => setStoreSourceSearchQuery(event.target.value)}
+                  placeholder={t('skill.searchStoreSources', 'Search stores...')}
+                  className="h-8 w-full rounded-md border border-sidebar-border/70 bg-sidebar-accent/30 pl-8 pr-7 text-xs text-sidebar-foreground outline-none transition-colors placeholder:text-sidebar-foreground/40 focus:border-primary/50 focus:bg-sidebar-accent/50"
+                />
+                {storeSourceSearchQuery ? (
+                  <button
+                    onClick={() => setStoreSourceSearchQuery('')}
+                    className="absolute right-1.5 top-1/2 -translate-y-1/2 rounded p-1 text-sidebar-foreground/40 hover:bg-sidebar-accent hover:text-sidebar-foreground"
+                    title={t('common.clear', '清空')}
+                  >
+                    <XIcon className="h-3 w-3" />
+                  </button>
+                ) : null}
+              </div>
             </div>
           )}
         </div>

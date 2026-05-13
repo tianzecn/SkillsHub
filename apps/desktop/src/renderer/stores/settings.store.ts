@@ -153,7 +153,8 @@ export type AIUsageScenario =
   | "promptTest"
   | "imageTest"
   | "translation"
-  | "skillInsight";
+  | "skillInsight"
+  | "skillSearch";
 
 export type ScenarioModelDefaults = Partial<Record<AIUsageScenario, string>>;
 
@@ -295,6 +296,8 @@ interface SettingsState {
   autoScanStoreSkillsBeforeInstall: boolean;
   skillInsightAutoGenerateEnabled: boolean;
   skillInsightAutoGenerateConfirmed: boolean;
+  skillSearchEnabled: boolean;
+  skillSearchConfirmed: boolean;
   skillsShApiKey: string;
 
   // Actions
@@ -382,6 +385,8 @@ interface SettingsState {
   setAutoScanStoreSkillsBeforeInstall: (enabled: boolean) => void;
   setSkillInsightAutoGenerateEnabled: (enabled: boolean) => void;
   setSkillInsightAutoGenerateConfirmed: (confirmed: boolean) => void;
+  setSkillSearchEnabled: (enabled: boolean) => void;
+  setSkillSearchConfirmed: (confirmed: boolean) => void;
   setSkillsShApiKey: (apiKey: string) => void;
 }
 
@@ -480,6 +485,8 @@ export const useSettingsStore = create<SettingsState>()(
         autoScanStoreSkillsBeforeInstall: false,
         skillInsightAutoGenerateEnabled: false,
         skillInsightAutoGenerateConfirmed: false,
+        skillSearchEnabled: false,
+        skillSearchConfirmed: false,
         skillsShApiKey: "",
 
         setCreationMode: (mode) => setTouched({ creationMode: mode }),
@@ -927,6 +934,10 @@ export const useSettingsStore = create<SettingsState>()(
           setTouched({ skillInsightAutoGenerateEnabled: enabled }),
         setSkillInsightAutoGenerateConfirmed: (confirmed) =>
           setTouched({ skillInsightAutoGenerateConfirmed: confirmed }),
+        setSkillSearchEnabled: (enabled) =>
+          setTouched({ skillSearchEnabled: enabled }),
+        setSkillSearchConfirmed: (confirmed) =>
+          setTouched({ skillSearchConfirmed: confirmed }),
         setSkillsShApiKey: (apiKey) => setTouched({ skillsShApiKey: apiKey }),
       };
     },
@@ -977,6 +988,12 @@ export const useSettingsStore = create<SettingsState>()(
         }
         if (typeof next.skillInsightAutoGenerateConfirmed !== "boolean") {
           next.skillInsightAutoGenerateConfirmed = false;
+        }
+        if (typeof next.skillSearchEnabled !== "boolean") {
+          next.skillSearchEnabled = false;
+        }
+        if (typeof next.skillSearchConfirmed !== "boolean") {
+          next.skillSearchConfirmed = false;
         }
         if (typeof next.skillsShApiKey !== "string") {
           next.skillsShApiKey = "";

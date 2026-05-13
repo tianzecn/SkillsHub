@@ -59,6 +59,10 @@ import {
   isConfiguredModel,
   resolveScenarioModel,
 } from "../../services/ai-defaults";
+import {
+  buildSkillInsightSearchText,
+  shouldTriggerSkillOnlineSearch,
+} from "../../services/skill-search";
 
 const CATEGORY_ICONS: Record<string, React.ReactNode> = {
   all: <LayoutGridIcon className="w-3.5 h-3.5" />,
@@ -98,7 +102,6 @@ const CUSTOM_SOURCE_TYPE_OPTIONS: Array<{
 
 const MAX_REMOTE_STORE_DEPTH = 3;
 const MAX_SKILLS_SH_SKILLS = 200;
-
 const BUILTIN_REMOTE_STORES: Record<
   string,
   {
@@ -133,6 +136,7 @@ const BUILTIN_REMOTE_STORES: Record<
     url: SKILLS_SH_BASE_URL,
   },
 };
+const BUILTIN_REMOTE_STORE_IDS = Object.keys(BUILTIN_REMOTE_STORES);
 
 function slugify(value: string) {
   return value
@@ -197,6 +201,17 @@ function dedupeRegistrySkills(skills: RegistrySkill[]) {
     seenNames.add(normalizedName);
   }
   return Array.from(bySlug.values());
+}
+
+function getSearchableRemoteSourceIds(
+  customStoreSources: SkillStoreSource[],
+): string[] {
+  return [
+    ...BUILTIN_REMOTE_STORE_IDS,
+    ...customStoreSources
+      .filter((source) => source.enabled)
+      .map((source) => source.id),
+  ];
 }
 
 function parseJson<T>(raw: string, fallback: T): T {
@@ -317,9 +332,6 @@ export function SkillStore() {
   const setStoreCategory = useSkillStore((state) => state.setStoreCategory);
   const storeSearchQuery =
     useSkillStore((state) => state.storeSearchQuery) ?? "";
-  const setStoreSearchQuery = useSkillStore(
-    (state) => state.setStoreSearchQuery,
-  );
   const installRegistrySkill = useSkillStore(
     (state) => state.installRegistrySkill,
   );
@@ -363,7 +375,6 @@ export function SkillStore() {
   const refreshSkillInsight = useSkillStore(
     (state) => state.refreshSkillInsight,
   );
-
   const [installingSlug, setInstallingSlug] = useState<string | null>(null);
   const [sourceType, setSourceType] =
     useState<
@@ -421,6 +432,10 @@ export function SkillStore() {
           ),
         )
         .join("|"),
+    [customStoreSources],
+  );
+  const searchableRemoteSourceIds = useMemo(
+    () => getSearchableRemoteSourceIds(customStoreSources),
     [customStoreSources],
   );
   const skillInsightModel = useMemo(
@@ -831,14 +846,20 @@ export function SkillStore() {
       const cacheExpired =
         cachedEntry?.expiresAt !== undefined &&
         cachedEntry.expiresAt <= Date.now();
+      const requestQuery =
+        source.type === "skills-sh" && storeSearchQuery.trim().length >= 2
+          ? storeSearchQuery.trim()
+          : "";
+      const queryCacheMiss =
+        source.type === "skills-sh" && (cachedEntry?.query || "") !== requestQuery;
       // Most store caches are reused until manual refresh. The skills.sh API can
       // provide Cache-Control, so that source may expire automatically.
       const hasCachedSkills = cachedEntry && cachedEntry.skills.length > 0;
       const hasCachedFailure = Boolean(cachedEntry?.error);
       // Failed loads should not auto-retry on every rerender.
       // They may be retried via manual refresh or scheduled force refresh.
-      if (!forceRefresh && hasCachedFailure) return;
-      if (!forceRefresh && hasCachedSkills && !cacheExpired) return;
+      if (!forceRefresh && hasCachedFailure && !queryCacheMiss) return;
+      if (!forceRefresh && hasCachedSkills && !cacheExpired && !queryCacheMiss) return;
 
       const loadPromise = (async () => {
         setLoadingSourceId(sourceId);
@@ -885,6 +906,7 @@ export function SkillStore() {
                 ? skillsShCacheExpiresAtRef.current
                 : undefined,
             error: partialFailureMessage,
+            query: source.type === "skills-sh" ? requestQuery : undefined,
             skills: skillsForSource,
           });
         } catch (error) {
@@ -894,6 +916,7 @@ export function SkillStore() {
           setRemoteStoreEntry(sourceId, {
             loadedAt: cachedEntry?.loadedAt || 0,
             error: getRemoteStoreErrorMessage(error, t),
+            query: source.type === "skills-sh" ? requestQuery : cachedEntry?.query,
             skills: cachedEntry?.skills || [],
           });
         } finally {
@@ -1016,8 +1039,17 @@ export function SkillStore() {
   }, [customStoreSources, customStoreSourcesSyncKey]);
 
   const sourceRegistrySkills = useMemo(() => {
+    const query = storeSearchQuery.trim().toLowerCase();
+    const searchableSourceIds = new Set(searchableRemoteSourceIds);
+    const remoteSkills = Object.entries(remoteStoreEntries)
+      .filter(([sourceId]) => searchableSourceIds.has(sourceId))
+      .flatMap(([, entry]) => entry.skills);
+    const shouldSearchAcrossSources =
+      Boolean(query) && selectedStoreSourceId !== "new-custom";
     let baseSkills: RegistrySkill[] = [];
-    if (selectedStoreSourceId === "official") {
+    if (shouldSearchAcrossSources) {
+      baseSkills = dedupeRegistrySkills([...registrySkills, ...remoteSkills]);
+    } else if (selectedStoreSourceId === "official") {
       baseSkills = registrySkills;
     } else {
       baseSkills = selectedRemoteEntry?.skills || [];
@@ -1029,23 +1061,41 @@ export function SkillStore() {
       );
     }
 
-    const usesRemoteCommunitySearch =
-      selectedStoreSourceId === "community" && storeSearchQuery.trim().length >= 2;
-    if (storeSearchQuery.trim() && !usesRemoteCommunitySearch) {
-      const query = storeSearchQuery.toLowerCase();
+    const communityQueryMatches =
+      query.length >= 2 &&
+      (remoteStoreEntries.community?.query || "").toLowerCase() === query;
+    const communityResultSlugs = new Set(
+      remoteStoreEntries.community?.skills.map((skill) => skill.slug) ?? [],
+    );
+    if (query) {
       baseSkills = baseSkills.filter(
-        (skill) =>
-          skill.name.toLowerCase().includes(query) ||
-          skill.description.toLowerCase().includes(query) ||
-          skill.tags.some((tag) => tag.toLowerCase().includes(query)),
+        (skill) => {
+          const insightText = buildSkillInsightSearchText(
+            getSkillInsight(skill, insightLanguage),
+          );
+          const fromCurrentCommunitySearch =
+            communityQueryMatches && communityResultSlugs.has(skill.slug);
+          return (
+            fromCurrentCommunitySearch ||
+            skill.name.toLowerCase().includes(query) ||
+            skill.description.toLowerCase().includes(query) ||
+            skill.tags.some((tag) => tag.toLowerCase().includes(query)) ||
+            insightText.toLowerCase().includes(query)
+          );
+        },
       );
     }
 
     return baseSkills;
   }, [
+    getSkillInsight,
+    insightLanguage,
     registrySkills,
+    remoteStoreEntries,
+    searchableRemoteSourceIds,
     selectedRemoteEntry?.skills,
     selectedStoreSourceId,
+    skillInsightCache,
     storeCategory,
     storeSearchQuery,
   ]);
@@ -1096,6 +1146,14 @@ export function SkillStore() {
     () => sourceRegistrySkills.filter((skill) => !isSkillInstalled(skill)),
     [isSkillInstalled, sourceRegistrySkills],
   );
+  const shouldShowOnlineSearch = shouldTriggerSkillOnlineSearch(storeSearchQuery);
+  const isOnlineSearchLoading = loadingSourceId === "community";
+
+  const handleFindOnlineSkills = () => {
+    if (!shouldShowOnlineSearch) return;
+    void loadStoreSource("community", true);
+  };
+
   const skillInsightQueueKey = useMemo(
     () =>
       sourceRegistrySkills
@@ -1478,18 +1536,6 @@ export function SkillStore() {
               />
             </button>
           )}
-          {sourceMeta.showCatalog && (
-            <div className="relative w-64">
-              <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-              <input
-                type="text"
-                value={storeSearchQuery}
-                onChange={(e) => setStoreSearchQuery(e.target.value)}
-                placeholder={t("skill.searchStore", "Search skills...")}
-                className="w-full pl-9 pr-3 py-2 text-sm bg-accent/50 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/50 transition-all"
-              />
-            </div>
-          )}
         </div>
       </div>
 
@@ -1700,6 +1746,39 @@ export function SkillStore() {
                 className="rounded-lg bg-destructive/10 px-3 py-1.5 text-xs font-medium text-destructive transition-colors hover:bg-destructive/20"
               >
                 {t("skill.disableInsight", "Disable AI insights")}
+              </button>
+            </div>
+          )}
+
+        {sourceMeta.showCatalog &&
+          shouldShowOnlineSearch &&
+          !shouldShowInitialLoading && (
+            <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-muted/30 px-3 py-2 text-xs">
+              <div className="min-w-0">
+                <div className="font-medium text-foreground">
+                  {t("skill.searchOnlineTitle", "Need more matches?")}
+                </div>
+                <div className="mt-0.5 text-muted-foreground">
+                  {t(
+                    "skill.searchOnlineDesc",
+                    "Current results use loaded sources and cached AI insights. Online search queries skills.sh without calling AI.",
+                  )}
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={handleFindOnlineSkills}
+                disabled={isOnlineSearchLoading}
+                className="inline-flex h-8 shrink-0 items-center gap-2 rounded-md border border-border bg-background px-3 font-medium text-foreground transition-colors hover:bg-accent disabled:opacity-50"
+              >
+                {isOnlineSearchLoading ? (
+                  <Loader2Icon className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <GlobeIcon className="h-3.5 w-3.5" />
+                )}
+                {isOnlineSearchLoading
+                  ? t("skill.searchOnlineLoading", "Searching...")
+                  : t("skill.searchOnlineButton", "Find online")}
               </button>
             </div>
           )}

@@ -33,6 +33,8 @@ import { useTranslation } from "react-i18next";
 import { useUIStore } from "../../stores/ui.store";
 import { collectPrivateFolderScopeIds } from "../../services/prompt-filter";
 import { filterVisibleSkills } from "../../services/skill-filter";
+import { createInstalledSkillInsightSkill } from "../../services/skill-insight";
+import { buildSkillInsightSearchText } from "../../services/skill-search";
 import {
   getRuntimeCapabilities,
   getWebContext,
@@ -67,7 +69,7 @@ export function TopBar({
   updateAvailable,
   onShowUpdateDialog,
 }: TopBarProps) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   // Prompt store
   const promptSearchQuery = usePromptStore((state) => state.searchQuery);
   const setPromptSearchQuery = usePromptStore((state) => state.setSearchQuery);
@@ -84,6 +86,8 @@ export function TopBar({
   const deployedSkillNames = useSkillStore((state) => state.deployedSkillNames);
   const skillStoreView = useSkillStore((state) => state.storeView);
   const selectSkill = useSkillStore((state) => state.selectSkill);
+  const getSkillInsight = useSkillStore((state) => state.getSkillInsight);
+  const skillInsightCache = useSkillStore((state) => state.skillInsightCache);
 
   const isDarkMode = useSettingsStore((state) => state.isDarkMode);
   const setDarkMode = useSettingsStore((state) => state.setDarkMode);
@@ -204,6 +208,16 @@ export function TopBar({
       deployedSkillNames,
       filterTags: skillFilterTags,
       filterType: skillFilterType,
+      getInsightSearchText: (skill) => {
+        const content = skill.content || skill.instructions || "";
+        if (!content.trim()) return "";
+        return buildSkillInsightSearchText(
+          getSkillInsight(
+            createInstalledSkillInsightSkill(skill, content, skill.description),
+            i18n.language,
+          ),
+        );
+      },
       searchQuery: deferredSkillSearchQuery,
       skills,
       storeView: skillStoreView,
@@ -211,7 +225,10 @@ export function TopBar({
   }, [
     deferredSkillSearchQuery,
     deployedSkillNames,
+    getSkillInsight,
+    i18n.language,
     skillFilterTags,
+    skillInsightCache,
     skillFilterType,
     skillStoreView,
     skills,

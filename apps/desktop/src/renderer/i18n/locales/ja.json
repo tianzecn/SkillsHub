@@ -841,7 +841,12 @@
     "skillsShCommunitySource": "skills.sh コミュニティソース",
     "skillsShApiKey": "skills.sh API Key",
     "skillsShApiKeyPlaceholder": "任意の API Key（例: sk_live_...）",
-    "skillsShApiKeyDesc": "任意です。内蔵の skills.sh コミュニティソースを読み込む場合にだけ使用します。ローカルモデルの API Key と同じく、ローカルの PromptHub 設定に保存されます。"
+    "skillsShApiKeyDesc": "任意です。内蔵の skills.sh コミュニティソースを読み込む場合にだけ使用します。ローカルモデルの API Key と同じく、ローカルの PromptHub 設定に保存されます。",
+    "aiWorkbenchScenarioSkillSearch": "Skill 検索 / AI Skill Finder",
+    "aiWorkbenchScenarioSkillSearchDesc": "検索語、候補概要、キャッシュ済み解釈から Skill を並べ替え、必要に応じて外部ソースへ拡張します。",
+    "aiWorkbenchBadgeSkillSearch": "Skill 検索",
+    "skillSearchEnabled": "AI Skill 検索を有効化",
+    "skillSearchEnabledDesc": "入力が止まった後、AI で現在の結果を並べ替え、必要に応じて外部 Skill ソースを検索します。"
   },
   "import": {
     "clipboardTitle": "クリップボードから Prompt をインポート",
@@ -1460,7 +1465,41 @@
     "insightGenerateOnRefresh": "「インサイトを更新」をクリックすると、このインストール済み Skill の AI 利用ガイドを生成します。",
     "insightExampleExplicit": "明示的",
     "insightExampleNatural": "自然な意図",
-    "insightExampleBoundary": "境界例"
+    "insightExampleBoundary": "境界例",
+    "searchConsentTitle": "自動 AI Skill 検索を有効にしますか？",
+    "searchConsentDesc": "PromptHub は検索語、候補概要、キャッシュ済み AI 解釈を設定済み AI サービスへ送信します。結果が少ない場合は外部 Skill ソースを検索し、token を消費することがあります。",
+    "searchEnable": "AI 検索を有効化",
+    "searchAiResultsTitle": "AI 検索結果",
+    "searchAiResultsDesc": "「{{query}}」の意味的な一致と外部候補",
+    "searchRefresh": "再検索",
+    "searchAiNotConfigured": "AI 検索は有効ですが、Skill 検索モデルが未設定です。まずローカル一致を表示します。",
+    "searchAiFailed": "AI 検索に失敗したため、ローカル一致を表示しています。",
+    "searchOnlineTitle": "さらに候補を探しますか？",
+    "searchOnlineDesc": "現在の結果は読み込み済みソースとキャッシュ済み AI 解釈を使います。オンライン検索は AI を呼ばず skills.sh だけを照会します。",
+    "searchOnlineButton": "オンラインで探す",
+    "searchOnlineLoading": "検索中...",
+    "searchSource": {
+      "installed": "インストール済み",
+      "official": "公式",
+      "community": "コミュニティ",
+      "custom": "カスタム",
+      "external": "外部"
+    },
+    "searchWeakMatch": "弱い一致",
+    "searchLocalMatchReason": "ローカル項目またはキャッシュ済み AI 解釈に一致しました。",
+    "searchConfidence": {
+      "high": "高信頼",
+      "medium": "中信頼",
+      "low": "低信頼"
+    },
+    "searchSignalWeeklyInstalls": "{{value}}/週",
+    "searchSignalGithubStars": "{{value}} stars",
+    "searchSignalAuditPass": "監査通過",
+    "searchSignalAuditWarn": "監査注意",
+    "searchSignalAuditFail": "監査リスク",
+    "searchSignalInsightCaution": "慎重に導入",
+    "searchSignalInsightNotRecommended": "非推奨",
+    "searchNoAiResults": "より適した AI 一致は見つかりませんでした"
   },
   "error": {
     "sha512Desc": "SHA512 checksum mismatch.\nThis is usually caused by CDN cache inconsistencies or network issues.\nThe file may have been downloaded successfully. You can try to install it manually."

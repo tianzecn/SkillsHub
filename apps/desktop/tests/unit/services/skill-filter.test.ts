@@ -58,4 +58,18 @@ describe("filterVisibleSkills", () => {
 
     expect(result.map((skill) => skill.name)).toEqual(["beta"]);
   });
+
+  it("can search cached AI insight text through the optional resolver", () => {
+    const result = filterVisibleSkills({
+      deployedSkillNames: new Set(),
+      filterType: "all",
+      getInsightSearchText: (skill) =>
+        skill.name === "alpha" ? "semantic spreadsheet formatter" : "",
+      searchQuery: "spreadsheet",
+      skills,
+      storeView: "my-skills",
+    });
+
+    expect(result.map((skill) => skill.name)).toEqual(["alpha"]);
+  });
 });

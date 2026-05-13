@@ -841,7 +841,12 @@
     "skillsShCommunitySource": "Source communautaire skills.sh",
     "skillsShApiKey": "Clé API skills.sh",
     "skillsShApiKeyPlaceholder": "Clé API facultative, ex. sk_live_...",
-    "skillsShApiKeyDesc": "Facultatif. Utilisée uniquement pour charger la source communautaire skills.sh intégrée. Elle est stockée dans vos paramètres locaux PromptHub, comme les clés API de modèles locales."
+    "skillsShApiKeyDesc": "Facultatif. Utilisée uniquement pour charger la source communautaire skills.sh intégrée. Elle est stockée dans vos paramètres locaux PromptHub, comme les clés API de modèles locales.",
+    "aiWorkbenchScenarioSkillSearch": "Recherche de Skill / recherche IA",
+    "aiWorkbenchScenarioSkillSearchDesc": "Réordonne les skills à partir de la requête, des résumés candidats et des insights en cache, puis étend aux sources externes si nécessaire.",
+    "aiWorkbenchBadgeSkillSearch": "Recherche Skill",
+    "skillSearchEnabled": "Activer la recherche IA de skills",
+    "skillSearchEnabledDesc": "Après une pause de saisie, réordonner les résultats avec l’IA et interroger des sources externes si nécessaire."
   },
   "import": {
     "clipboardTitle": "Importer un Prompt depuis le presse-papiers",
@@ -1460,7 +1465,41 @@
     "insightGenerateOnRefresh": "Cliquez sur Actualiser l analyse pour générer des conseils IA pour ce Skill installé.",
     "insightExampleExplicit": "Explicite",
     "insightExampleNatural": "Intention naturelle",
-    "insightExampleBoundary": "Limite"
+    "insightExampleBoundary": "Limite",
+    "searchConsentTitle": "Activer la recherche IA automatique de skills ?",
+    "searchConsentDesc": "PromptHub enverra le terme recherché, les résumés candidats et les insights IA en cache à votre service IA configuré. Si les résultats sont rares, il peut interroger des sources externes et consommer des tokens.",
+    "searchEnable": "Activer la recherche IA",
+    "searchAiResultsTitle": "Résultats de recherche IA",
+    "searchAiResultsDesc": "Correspondances sémantiques et suggestions externes pour « {{query}} »",
+    "searchRefresh": "Relancer la recherche",
+    "searchAiNotConfigured": "La recherche IA est activée, mais aucun modèle Skill Search n’est configuré. Les correspondances locales sont affichées d’abord.",
+    "searchAiFailed": "La recherche IA a échoué pour le moment ; les correspondances locales sont affichées.",
+    "searchOnlineTitle": "Besoin de plus de résultats ?",
+    "searchOnlineDesc": "Les résultats actuels utilisent les sources chargées et les insights IA en cache. La recherche en ligne interroge skills.sh sans appeler l’IA.",
+    "searchOnlineButton": "Chercher en ligne",
+    "searchOnlineLoading": "Recherche...",
+    "searchSource": {
+      "installed": "Installé",
+      "official": "Officiel",
+      "community": "Communauté",
+      "custom": "Personnalisé",
+      "external": "Externe"
+    },
+    "searchWeakMatch": "Correspondance faible",
+    "searchLocalMatchReason": "Correspond aux champs locaux ou à un insight IA en cache.",
+    "searchConfidence": {
+      "high": "Confiance élevée",
+      "medium": "Confiance moyenne",
+      "low": "Confiance faible"
+    },
+    "searchSignalWeeklyInstalls": "{{value}}/sem.",
+    "searchSignalGithubStars": "{{value}} stars",
+    "searchSignalAuditPass": "Audit validé",
+    "searchSignalAuditWarn": "Audit à surveiller",
+    "searchSignalAuditFail": "Risque d’audit",
+    "searchSignalInsightCaution": "À importer avec prudence",
+    "searchSignalInsightNotRecommended": "Non recommandé",
+    "searchNoAiResults": "Aucune meilleure correspondance IA trouvée"
   },
   "error": {
     "sha512Desc": "SHA512 checksum mismatch.\nThis is usually caused by CDN cache inconsistencies or network issues.\nThe file may have been downloaded successfully. You can try to install it manually."
