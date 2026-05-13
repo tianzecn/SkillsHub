@@ -39,6 +39,7 @@ import {
   buildSkillInsightCacheKey,
   buildSkillInsightMessages,
   computeSkillInsightContentHash,
+  createInstalledSkillInsightSkill,
   hasSkillInsightContent,
   parseSkillInsightResponse,
 } from "../services/skill-insight";
@@ -218,6 +219,75 @@ function hasMeaningfulSkillBody(content?: string): boolean {
 
   const body = stripSkillFrontmatter(trimmed).trim();
   return body.length > 0;
+}
+
+function copyReadySkillInsightCacheForInstalledSkill(
+  cache: Record<string, SkillInsightCacheEntry>,
+  sourceSkills: RegistrySkill[],
+  installedSkill: Skill,
+  installedContent: string,
+): Record<string, SkillInsightCacheEntry> {
+  const targetSkill = createInstalledSkillInsightSkill(
+    installedSkill,
+    installedContent,
+    installedSkill.description,
+  );
+  const targetHash = computeSkillInsightContentHash(targetSkill);
+  const languages = Array.from(
+    new Set(
+      Object.values(cache)
+        .filter((entry) => entry.status === "ready" && entry.insight)
+        .map((entry) => entry.language),
+    ),
+  );
+
+  if (languages.length === 0) {
+    return cache;
+  }
+
+  let copied = false;
+  const nextCache = { ...cache };
+
+  for (const language of languages) {
+    const targetKey = buildSkillInsightCacheKey(targetSkill, language);
+    if (nextCache[targetKey]?.status === "ready") {
+      continue;
+    }
+
+    const seenSourceKeys = new Set<string>();
+    for (const sourceSkill of sourceSkills) {
+      const sourceKey = buildSkillInsightCacheKey(sourceSkill, language);
+      if (seenSourceKeys.has(sourceKey)) {
+        continue;
+      }
+      seenSourceKeys.add(sourceKey);
+
+      const sourceEntry = cache[sourceKey];
+      if (sourceEntry?.status !== "ready" || !sourceEntry.insight) {
+        continue;
+      }
+
+      const sourceHash = computeSkillInsightContentHash(sourceSkill);
+      const includesFileSnapshot = (sourceSkill.files?.length ?? 0) > 0;
+      if (sourceHash !== targetHash && !includesFileSnapshot) {
+        continue;
+      }
+
+      nextCache[targetKey] = {
+        ...sourceEntry,
+        timestamp: Date.now(),
+        contentHash: targetHash,
+        insight: {
+          ...sourceEntry.insight,
+          contentHash: targetHash,
+        },
+      };
+      copied = true;
+      break;
+    }
+  }
+
+  return copied ? pruneSkillInsightCache(nextCache) : cache;
 }
 
 function getRegistrySkillCandidates(state: SkillState): RegistrySkill[] {
@@ -1465,6 +1535,28 @@ export const useSkillStore = create<SkillState>()(
             compatibility: installSkill.compatibility,
           });
           if (newSkill) {
+            const insightSourceCandidates = [
+              regSkill,
+              installSkill,
+              {
+                ...regSkill,
+                content: effectiveContent,
+                files: undefined,
+              },
+              {
+                ...installSkill,
+                content: effectiveContent,
+                files: undefined,
+              },
+            ];
+            set((state) => ({
+              skillInsightCache: copyReadySkillInsightCacheForInstalledSkill(
+                state.skillInsightCache,
+                insightSourceCandidates,
+                newSkill,
+                effectiveContent,
+              ),
+            }));
             try {
               await window.api.skill.writeLocalFile(
                 newSkill.id,

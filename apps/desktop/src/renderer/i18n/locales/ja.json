@@ -1426,7 +1426,7 @@
     "skillsShAudits": "skills.sh 監査",
     "skillsShAuditHighRiskTitle": "skills.sh 監査警告",
     "skillsShAuditHighRiskMessage": "1 つ以上の skills.sh 監査パートナーがこの skill を警告しました。インポート前に内容を確認してください。",
-    "insightDisabledCard": "AI インサイトを有効にすると、この Skill のインポート判断を確認できます。",
+    "insightDisabledCard": "AI インサイトを有効にすると、この Skill の利用ガイドを確認できます。",
     "insightGenerating": "AI インサイトを生成中...",
     "insightInsufficient": "AI インサイトを生成するには完全な SKILL.md が必要です。",
     "insightFailed": "AI インサイトの生成に失敗しました",
@@ -1456,7 +1456,8 @@
     "insightAiNotConfigured": "先に Settings > AI で Skill インサイト用モデルを設定してください。",
     "insightRefreshed": "AI インサイトを更新しました",
     "insightInstallConfirm": "{{verdict}}: {{reason}}\n\nそれでもこの Skill をインポートしますか？",
-    "insightPanelTitle": "AI インポートインサイト",
+    "insightPanelTitle": "AI Skill インサイト",
+    "insightGenerateOnRefresh": "「インサイトを更新」をクリックすると、このインストール済み Skill の AI 利用ガイドを生成します。",
     "insightExampleExplicit": "明示的",
     "insightExampleNatural": "自然な意図",
     "insightExampleBoundary": "境界例"

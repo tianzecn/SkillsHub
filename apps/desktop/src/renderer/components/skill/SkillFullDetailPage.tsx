@@ -29,6 +29,7 @@ import { EditSkillModal } from "./EditSkillModal";
 import { SkillFileEditor } from "./SkillFileEditor";
 import { ConfirmDialog } from "../ui/ConfirmDialog";
 import { Modal, Textarea } from "../ui";
+import type { MouseEvent } from "react";
 import "highlight.js/styles/github-dark.css";
 import "./SkillMarkdown.css";
 import {
@@ -41,13 +42,15 @@ import {
 } from "./detail-utils";
 import { useSkillPlatform } from "./use-skill-platform";
 import { SkillVersionHistoryModal } from "./SkillVersionHistoryModal";
-import type { SkillSafetyReport } from "@prompthub/shared/types";
+import type { RegistrySkill, SkillSafetyReport } from "@prompthub/shared/types";
 import {
   getSkillSafetyFindingTitle,
   getSkillSafetyMethodDescription,
   getSkillSafetySummary,
 } from "./safety-i18n";
 import { getRuntimeCapabilities } from "../../runtime";
+import { SkillInsightPanel } from "./SkillInsightPanel";
+import { createInstalledSkillInsightSkill } from "../../services/skill-insight";
 
 /**
  * Full-width Skill Detail Page
@@ -98,6 +101,14 @@ export function SkillFullDetailPage({
   const loadSkills = useSkillStore((state) => state.loadSkills);
   const syncSkillFromRepo = useSkillStore((state) => state.syncSkillFromRepo);
   const saveSafetyReport = useSkillStore((state) => state.saveSafetyReport);
+  const skillInsightCache = useSkillStore((state) => state.skillInsightCache);
+  const getSkillInsight = useSkillStore((state) => state.getSkillInsight);
+  const generateSkillInsight = useSkillStore(
+    (state) => state.generateSkillInsight,
+  );
+  const refreshSkillInsight = useSkillStore(
+    (state) => state.refreshSkillInsight,
+  );
   const rememberDetailTabState =
     useSkillStore((state) => state.rememberDetailTabState) ??
     (() => undefined);
@@ -120,6 +131,9 @@ export function SkillFullDetailPage({
   );
   const autoScanInstalledSkills = useSettingsStore(
     (state) => state.autoScanInstalledSkills,
+  );
+  const skillInsightAutoGenerateEnabled = useSettingsStore(
+    (state) => state.skillInsightAutoGenerateEnabled,
   );
   const aiModels = useSettingsStore((state) => state.aiModels);
   const [installMode, setInstallMode] = useState<InstallMode>(
@@ -180,6 +194,33 @@ export function SkillFullDetailPage({
       selectedSkill?.description ||
       "",
     [displaySkillMdContent, selectedSkill?.description],
+  );
+  const installedInsightSkill = useMemo(() => {
+    if (
+      !selectedSkill ||
+      resolvedSkillMdContentSkillId !== selectedSkill.id ||
+      !displaySkillMdContent.trim()
+    ) {
+      return null;
+    }
+
+    return createInstalledSkillInsightSkill(
+      selectedSkill,
+      displaySkillMdContent,
+      resolvedDescription,
+    );
+  }, [
+    displaySkillMdContent,
+    resolvedDescription,
+    resolvedSkillMdContentSkillId,
+    selectedSkill,
+  ]);
+  const installedInsightEntry = useMemo(
+    () =>
+      installedInsightSkill
+        ? getSkillInsight(installedInsightSkill, targetLang)
+        : null,
+    [getSkillInsight, installedInsightSkill, skillInsightCache, targetLang],
   );
   const safetyTone =
     safetyReport?.level === "blocked"
@@ -380,6 +421,37 @@ export function SkillFullDetailPage({
     selectedSkill?.name,
     selectedSkill?.source_url,
   ]);
+
+  useEffect(() => {
+    if (
+      !skillInsightAutoGenerateEnabled ||
+      !installedInsightSkill ||
+      activeTab !== "preview" ||
+      installedInsightEntry?.status
+    ) {
+      return;
+    }
+
+    let cancelled = false;
+
+    void generateSkillInsight(installedInsightSkill, targetLang).catch((error) => {
+      if (!cancelled) {
+        console.warn("Failed to generate installed skill insight:", error);
+      }
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    activeTab,
+    generateSkillInsight,
+    installedInsightEntry?.status,
+    installedInsightSkill,
+    skillInsightAutoGenerateEnabled,
+    targetLang,
+  ]);
+
   const {
     availablePlatforms,
     batchInstall: installSelectedPlatforms,
@@ -557,6 +629,23 @@ export function SkillFullDetailPage({
       }
     } finally {
       setIsTranslating(false);
+    }
+  };
+
+  const handleRefreshInstalledInsight = async (
+    skill: RegistrySkill,
+    event: MouseEvent,
+  ) => {
+    event.stopPropagation();
+
+    try {
+      await refreshSkillInsight(skill, targetLang);
+      showToast(t("skill.insightRefreshed", "AI insight refreshed"), "success");
+    } catch (error) {
+      showToast(
+        `${t("skill.insightFailed", "AI insight failed")}: ${getErrorMessage(error)}`,
+        "error",
+      );
     }
   };
 
@@ -763,6 +852,20 @@ export function SkillFullDetailPage({
                   resolvedDescription={resolvedDescription}
                   selectedSkill={selectedSkill}
                   showTranslation={showTranslation}
+                  skillInsightPanel={
+                    installedInsightSkill ? (
+                      <SkillInsightPanel
+                        skill={installedInsightSkill}
+                        insightEntry={installedInsightEntry}
+                        insightEnabled
+                        onRefreshInsight={handleRefreshInstalledInsight}
+                        pendingMessage={t(
+                          "skill.insightGenerateOnRefresh",
+                          "Click Refresh insight to generate AI guidance for this installed skill.",
+                        )}
+                      />
+                    ) : null
+                  }
                   skillContent={displaySkillMdContent}
                   t={t}
                   translationMode={translationMode}

@@ -1,11 +1,13 @@
 import type {
   RegistrySkill,
+  Skill,
   SkillInsight,
   SkillInsightConfidence,
   SkillInsightEvidence,
   SkillInsightExamples,
   SkillInsightVerdict,
 } from "@prompthub/shared/types";
+import { normalizeSkill, normalizeStringArray } from "./skill-normalize";
 
 export const SKILL_INSIGHT_PROMPT_VERSION = 1;
 const MAX_ANALYSIS_CHARS = 48000;
@@ -160,6 +162,43 @@ export function buildSkillInsightCacheKey(
     skill.slug,
     contentHash,
   ].join(":");
+}
+
+export function createInstalledSkillInsightSkill(
+  skill: Skill,
+  skillContent: string,
+  resolvedDescription?: string,
+): RegistrySkill {
+  const normalizedSkill = normalizeSkill(skill);
+  const originalTags = normalizeStringArray(normalizedSkill.original_tags);
+  const currentTags = normalizeStringArray(normalizedSkill.tags);
+  const tags = originalTags.length > 0 ? originalTags : currentTags;
+  const sourceUrl =
+    normalizedSkill.source_url ||
+    normalizedSkill.content_url ||
+    normalizedSkill.local_repo_path ||
+    "installed";
+
+  return {
+    slug: normalizedSkill.registry_slug || normalizedSkill.name,
+    name: normalizedSkill.name,
+    install_name: normalizedSkill.name,
+    description:
+      resolvedDescription || normalizedSkill.description || normalizedSkill.name,
+    category: normalizedSkill.category || "general",
+    icon_url: normalizedSkill.icon_url,
+    icon_background: normalizedSkill.icon_background,
+    icon_emoji: normalizedSkill.icon_emoji,
+    author: normalizedSkill.author || "",
+    source_url: sourceUrl,
+    content_url: normalizedSkill.content_url,
+    source_type: normalizedSkill.local_repo_path ? "local-dir" : undefined,
+    tags,
+    version: normalizedSkill.version || "0.0.0",
+    content: skillContent,
+    prerequisites: normalizeStringArray(normalizedSkill.prerequisites),
+    compatibility: normalizeStringArray(normalizedSkill.compatibility),
+  };
 }
 
 export function buildSkillInsightMessages(skill: RegistrySkill, language: string) {

@@ -1426,7 +1426,7 @@
     "skillsShAudits": "skills.sh 审计",
     "skillsShAuditHighRiskTitle": "skills.sh 审计提醒",
     "skillsShAuditHighRiskMessage": "一个或多个 skills.sh 审计伙伴标记了此 skill。导入前请先查看发现项。",
-    "insightDisabledCard": "启用 AI 解读后，可查看此 Skill 的导入建议。",
+    "insightDisabledCard": "启用 AI 解读后，可查看此 Skill 的使用建议。",
     "insightGenerating": "正在生成 AI 解读...",
     "insightInsufficient": "需要完整 SKILL.md 内容后，才能生成 AI 解读。",
     "insightFailed": "AI 解读失败",
@@ -1456,7 +1456,8 @@
     "insightAiNotConfigured": "请先在 设置 > AI 中配置 Skill 解读模型。",
     "insightRefreshed": "AI 解读已刷新",
     "insightInstallConfirm": "{{verdict}}：{{reason}}\n\n仍要导入这个 Skill 吗？",
-    "insightPanelTitle": "AI 导入解读",
+    "insightPanelTitle": "AI Skill 解读",
+    "insightGenerateOnRefresh": "点击刷新解读，为这个已安装 Skill 生成 AI 使用建议。",
     "insightExampleExplicit": "显式点名",
     "insightExampleNatural": "自然意图",
     "insightExampleBoundary": "边界场景"

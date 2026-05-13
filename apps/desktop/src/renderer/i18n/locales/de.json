@@ -1426,7 +1426,7 @@
     "skillsShAudits": "skills.sh Audits",
     "skillsShAuditHighRiskTitle": "skills.sh Audit-Warnung",
     "skillsShAuditHighRiskMessage": "Ein oder mehrere skills.sh Audit-Partner haben diesen Skill markiert. Prüfen Sie die Ergebnisse vor dem Import.",
-    "insightDisabledCard": "Aktivieren Sie KI-Insights, um Importhinweise für diesen Skill zu sehen.",
+    "insightDisabledCard": "Aktivieren Sie KI-Insights, um Nutzungshinweise für diesen Skill zu sehen.",
     "insightGenerating": "KI-Insight wird generiert...",
     "insightInsufficient": "Vollständiger SKILL.md-Inhalt ist erforderlich, bevor ein KI-Insight erzeugt werden kann.",
     "insightFailed": "KI-Insight fehlgeschlagen",
@@ -1456,7 +1456,8 @@
     "insightAiNotConfigured": "Konfigurieren Sie zuerst unter Settings > AI ein Skill-Insight-Modell.",
     "insightRefreshed": "KI-Insight aktualisiert",
     "insightInstallConfirm": "{{verdict}}: {{reason}}\n\nDiesen Skill trotzdem importieren?",
-    "insightPanelTitle": "KI-Import-Insight",
+    "insightPanelTitle": "KI-Skill-Insight",
+    "insightGenerateOnRefresh": "Klicken Sie auf Insight aktualisieren, um KI-Nutzungshinweise für diesen installierten Skill zu erzeugen.",
     "insightExampleExplicit": "Explizit",
     "insightExampleNatural": "Natürliche Absicht",
     "insightExampleBoundary": "Grenzfall"

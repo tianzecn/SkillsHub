@@ -8,6 +8,7 @@ import {
   GlobeIcon,
 } from "lucide-react";
 import { useMemo } from "react";
+import type { ReactNode } from "react";
 import type { TFunction } from "i18next";
 import type { Skill } from "@prompthub/shared/types";
 import { normalizeStringArray } from "../../services/skill-normalize";
@@ -25,6 +26,7 @@ interface SkillPreviewPaneProps {
   resolvedDescription: string;
   selectedSkill: Skill;
   showTranslation: boolean;
+  skillInsightPanel?: ReactNode;
   skillContent: string;
   t: TFunction;
   translationMode: "immersive" | "full";
@@ -40,6 +42,7 @@ export function SkillPreviewPane({
   resolvedDescription,
   selectedSkill,
   showTranslation,
+  skillInsightPanel,
   skillContent,
   t,
   translationMode,
@@ -57,6 +60,10 @@ export function SkillPreviewPane({
 
   return (
     <div className="lg:col-span-2 flex h-full min-h-0 flex-col overflow-hidden space-y-6">
+      {skillInsightPanel ? (
+        <section className="shrink-0">{skillInsightPanel}</section>
+      ) : null}
+
       <section className="shrink-0 space-y-4">
         <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-[0.2em] flex items-center gap-2">
           {t("skill.skillDescription", "技能描述")}

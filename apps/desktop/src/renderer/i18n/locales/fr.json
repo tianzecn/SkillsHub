@@ -1426,7 +1426,7 @@
     "skillsShAudits": "Audits skills.sh",
     "skillsShAuditHighRiskTitle": "Avertissement d audit skills.sh",
     "skillsShAuditHighRiskMessage": "Un ou plusieurs partenaires d audit skills.sh ont signalé ce skill. Vérifiez les constats avant l import.",
-    "insightDisabledCard": "Activez l analyse IA pour voir les conseils d import de ce Skill.",
+    "insightDisabledCard": "Activez l analyse IA pour voir les conseils d utilisation de ce Skill.",
     "insightGenerating": "Génération de l analyse IA...",
     "insightInsufficient": "Le contenu SKILL.md complet est requis pour générer une analyse IA.",
     "insightFailed": "Échec de l analyse IA",
@@ -1456,7 +1456,8 @@
     "insightAiNotConfigured": "Configurez d abord un modèle d analyse de Skill dans Settings > AI.",
     "insightRefreshed": "Analyse IA actualisée",
     "insightInstallConfirm": "{{verdict}} : {{reason}}\n\nImporter quand même ce Skill ?",
-    "insightPanelTitle": "Analyse IA avant import",
+    "insightPanelTitle": "Analyse IA du Skill",
+    "insightGenerateOnRefresh": "Cliquez sur Actualiser l analyse pour générer des conseils IA pour ce Skill installé.",
     "insightExampleExplicit": "Explicite",
     "insightExampleNatural": "Intention naturelle",
     "insightExampleBoundary": "Limite"

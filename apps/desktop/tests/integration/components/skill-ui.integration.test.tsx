@@ -94,6 +94,10 @@ function createSkillStoreState(overrides: Partial<Record<string, unknown>> = {})
     importScannedSkills: vi.fn().mockResolvedValue({ importedCount: 0 }),
     syncSkillFromRepo: vi.fn().mockRejectedValue(new Error("No local repo")),
     saveSafetyReport: vi.fn().mockResolvedValue(undefined),
+    skillInsightCache: {},
+    getSkillInsight: vi.fn().mockReturnValue(null),
+    generateSkillInsight: vi.fn().mockResolvedValue(undefined),
+    refreshSkillInsight: vi.fn().mockResolvedValue(undefined),
     rememberDetailTabState: vi.fn(),
     getDetailTabState: vi.fn().mockReturnValue(undefined),
     translateContent: vi.fn().mockResolvedValue(undefined),
@@ -112,6 +116,7 @@ function createSettingsState(overrides: Partial<Record<string, unknown>> = {}) {
     translationMode: "full",
     skillInstallMethod: "symlink",
     autoScanInstalledSkills: false,
+    skillInsightAutoGenerateEnabled: false,
     aiModels: [],
     ...overrides,
   };

@@ -1437,7 +1437,7 @@
     "skillsShAudits": "skills.sh Audits",
     "skillsShAuditHighRiskTitle": "skills.sh Audit Warning",
     "skillsShAuditHighRiskMessage": "One or more skills.sh audit partners flagged this skill. Review the findings before importing.",
-    "insightDisabledCard": "Enable AI insight to see import guidance for this skill.",
+    "insightDisabledCard": "Enable AI insight to see guidance for this skill.",
     "insightGenerating": "Generating AI insight...",
     "insightInsufficient": "Full SKILL.md content is required before AI insight can be generated.",
     "insightFailed": "AI insight failed",
@@ -1467,7 +1467,8 @@
     "insightAiNotConfigured": "Configure a Skill insight model in Settings > AI first.",
     "insightRefreshed": "AI insight refreshed",
     "insightInstallConfirm": "{{verdict}}: {{reason}}\n\nImport this skill anyway?",
-    "insightPanelTitle": "AI import insight",
+    "insightPanelTitle": "AI skill insight",
+    "insightGenerateOnRefresh": "Click Refresh insight to generate AI guidance for this installed skill.",
     "insightExampleExplicit": "Explicit",
     "insightExampleNatural": "Natural",
     "insightExampleBoundary": "Boundary"

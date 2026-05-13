@@ -7,6 +7,7 @@ vi.mock("../../../src/renderer/services/ai", () => ({
 import { chatCompletion } from "../../../src/renderer/services/ai";
 import { useSkillStore } from "../../../src/renderer/stores/skill.store";
 import { useSettingsStore } from "../../../src/renderer/stores/settings.store";
+import { createInstalledSkillInsightSkill } from "../../../src/renderer/services/skill-insight";
 import { createSkillFixture } from "../../fixtures/skills";
 import { installWindowMocks } from "../../helpers/window";
 import type { RegistrySkill } from "@prompthub/shared/types";
@@ -1088,6 +1089,56 @@ description: Use this skill for PDF tasks.
       expect(useSkillStore.getState().getSkillInsight(skill, "中文")?.status).toBe(
         "ready",
       );
+    });
+
+    it("carries a generated store insight into the installed skill cache", async () => {
+      useSettingsStore.setState({
+        aiModels: [
+          {
+            id: "insight-model",
+            type: "chat",
+            provider: "openai",
+            apiKey: "key",
+            apiUrl: "https://api.example.com",
+            model: "gpt-test",
+            isDefault: true,
+          },
+        ],
+        scenarioModelDefaults: { skillInsight: "insight-model" },
+      } as Partial<ReturnType<typeof useSettingsStore.getState>>);
+      chatCompletionMock.mockResolvedValue({ content: insightJson } as any);
+
+      const skill = createRegistrySkill({
+        source_id: "demo-source/demo-skill",
+      });
+      await useSkillStore.getState().generateSkillInsight(skill, "中文");
+
+      const create = vi.fn().mockImplementation(async (data) => ({
+        id: "installed-demo-skill",
+        created_at: 1,
+        updated_at: 1,
+        ...data,
+      }));
+      (window as any).api.skill.create = create;
+      (window as any).api.skill.getAll = vi.fn().mockResolvedValue([]);
+
+      const installed = await useSkillStore
+        .getState()
+        .installRegistrySkill(skill);
+      const installedInsightSkill = createInstalledSkillInsightSkill(
+        installed!,
+        skill.content,
+        skill.description,
+      );
+      const installedEntry = useSkillStore
+        .getState()
+        .getSkillInsight(installedInsightSkill, "中文");
+
+      expect(installedEntry?.status).toBe("ready");
+      expect(installedEntry?.insight?.capabilitySummary).toBe(
+        "Explains when to review demo workflows.",
+      );
+      expect(chatCompletionMock).toHaveBeenCalledTimes(1);
     });
 
     it("invalidates the insight cache when skill content changes", async () => {

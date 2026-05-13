@@ -6,6 +6,35 @@ import { createSkillFixture } from "../../fixtures/skills";
 import { renderWithI18n } from "../../helpers/i18n";
 
 describe("SkillPreviewPane", () => {
+  it("places the AI insight panel above the installed skill description", async () => {
+    const skill = createSkillFixture();
+    const t = ((key: string, defaultValue?: string) => defaultValue ?? key) as any;
+
+    const { container } = await renderWithI18n(
+      <SkillPreviewPane
+        cachedDescriptionTranslation={null}
+        cachedInstructionsTranslation={null}
+        copyStatus={{ instr: false }}
+        handleCopy={vi.fn()}
+        handleTranslateSkill={vi.fn()}
+        isTranslating={false}
+        resolvedDescription="Imported skill description"
+        selectedSkill={skill}
+        showTranslation={false}
+        skillInsightPanel={<div>Installed skill insight</div>}
+        skillContent={"# Imported Skill\n\nThis content should still render."}
+        t={t}
+        translationMode="full"
+      />,
+    );
+
+    const text = container.textContent ?? "";
+    expect(text.indexOf("Installed skill insight")).toBeGreaterThanOrEqual(0);
+    expect(text.indexOf("Installed skill insight")).toBeLessThan(
+      text.indexOf("Imported skill description"),
+    );
+  });
+
   it("renders malformed imported skill metadata without crashing the preview", async () => {
     const skill = createSkillFixture({
       author: { broken: true } as any,

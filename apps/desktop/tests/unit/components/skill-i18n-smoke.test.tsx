@@ -143,6 +143,10 @@ function createSkillStoreState(overrides: Partial<Record<string, unknown>> = {})
     remoteStoreEntries: {},
     setRemoteStoreEntry: vi.fn(),
     importScannedSkills: vi.fn().mockResolvedValue({ importedCount: 0 }),
+    skillInsightCache: {},
+    getSkillInsight: vi.fn().mockReturnValue(null),
+    generateSkillInsight: vi.fn().mockResolvedValue(null),
+    refreshSkillInsight: vi.fn().mockResolvedValue(null),
     translateContent: vi.fn().mockResolvedValue(undefined),
     getTranslation: vi.fn().mockReturnValue(null),
     clearTranslation: vi.fn(),
@@ -155,6 +159,7 @@ function createSettingsState(overrides: Partial<Record<string, unknown>> = {}) {
     customSkillScanPaths: [],
     translationMode: "full",
     skillInstallMethod: "symlink",
+    skillInsightAutoGenerateEnabled: false,
     ...overrides,
   };
 }

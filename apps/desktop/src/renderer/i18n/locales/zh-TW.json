@@ -1426,7 +1426,7 @@
     "skillsShAudits": "skills.sh 審計",
     "skillsShAuditHighRiskTitle": "skills.sh 審計提醒",
     "skillsShAuditHighRiskMessage": "一個或多個 skills.sh 審計夥伴標記了此 skill。匯入前請先查看發現項。",
-    "insightDisabledCard": "啟用 AI 解讀後，可查看此 Skill 的匯入建議。",
+    "insightDisabledCard": "啟用 AI 解讀後，可查看此 Skill 的使用建議。",
     "insightGenerating": "正在生成 AI 解讀...",
     "insightInsufficient": "需要完整 SKILL.md 內容後，才能生成 AI 解讀。",
     "insightFailed": "AI 解讀失敗",
@@ -1456,7 +1456,8 @@
     "insightAiNotConfigured": "請先在 設定 > AI 中設定 Skill 解讀模型。",
     "insightRefreshed": "AI 解讀已重新整理",
     "insightInstallConfirm": "{{verdict}}：{{reason}}\n\n仍要匯入這個 Skill 嗎？",
-    "insightPanelTitle": "AI 匯入解讀",
+    "insightPanelTitle": "AI Skill 解讀",
+    "insightGenerateOnRefresh": "點擊重新整理解讀，為這個已安裝 Skill 生成 AI 使用建議。",
     "insightExampleExplicit": "明確點名",
     "insightExampleNatural": "自然意圖",
     "insightExampleBoundary": "邊界情境"

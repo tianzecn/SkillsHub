@@ -24,6 +24,7 @@ interface SkillInsightPanelProps {
   insightEnabled?: boolean;
   onRefreshInsight?: (skill: RegistrySkill, event: MouseEvent) => void;
   showSupplementalDetails?: boolean;
+  pendingMessage?: string;
   className?: string;
 }
 
@@ -99,6 +100,7 @@ export function SkillInsightPanel({
   insightEnabled = false,
   onRefreshInsight,
   showSupplementalDetails = true,
+  pendingMessage,
   className = "",
 }: SkillInsightPanelProps) {
   const { t } = useTranslation();
@@ -334,7 +336,8 @@ export function SkillInsightPanel({
       ) : (
         <div className="flex items-center gap-2 text-xs text-muted-foreground">
           <BrainIcon className="h-4 w-4" />
-          {t("skill.insightPending", "AI insight is queued for this skill.")}
+          {pendingMessage ??
+            t("skill.insightPending", "AI insight is queued for this skill.")}
         </div>
       )}
     </div>

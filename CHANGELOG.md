@@ -1,5 +1,17 @@
 ## [Unreleased]
 
+## [0.8.0] - 2026-05-13
+
+### 新增 / Added
+
+- 🧠 **已安装 Skill AI 解读**：我的 Skills 详情页会在技能描述上方显示与商店详情一致的结构化 AI 解读，导入后仍可直接查看推荐判断、核心能力、适用/不适用场景、提问示例、注意事项与证据
+  - **Installed Skill AI Insights**: My Skills detail pages now show the same structured AI insight panel above the skill description, so imported skills keep the recommendation, capability summary, fit/non-fit scenarios, prompt examples, notes, and evidence available in context.
+
+### 优化 / Changed
+
+- 🔁 **商店解读缓存复用**：从 Skill 商店导入时会把已生成且内容匹配的解读缓存带入已安装 Skill，避免重复调用 AI；如果没有可复用缓存，详情页仍可基于完整本地 `SKILL.md` 生成新解读
+  - **Store Insight Cache Reuse**: Importing from the Skill Store now carries over matching ready insight cache entries to the installed skill, avoiding duplicate AI calls. When no reusable cache exists, the detail page can still generate a fresh insight from the full local `SKILL.md`.
+
 ## [0.7.0] - 2026-05-13
 
 ### 新增 / Added
