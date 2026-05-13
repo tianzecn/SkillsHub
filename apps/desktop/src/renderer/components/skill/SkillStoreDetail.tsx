@@ -14,6 +14,7 @@ import {
   ShieldCheckIcon,
 } from "lucide-react";
 import { SkillIcon } from "./SkillIcon";
+import { SkillInsightPanel } from "./SkillInsightPanel";
 import { useSkillStore } from "../../stores/skill.store";
 import { useSettingsStore } from "../../stores/settings.store";
 import { useToast } from "../ui/Toast";
@@ -38,10 +39,14 @@ import {
   getSkillSafetySummary,
 } from "./safety-i18n";
 import { SkillMarkdown } from "./SkillMarkdown";
+import type { SkillInsightCacheEntry } from "../../stores/skill.store";
 
 interface SkillStoreDetailProps {
   skill: RegistrySkill;
   isInstalled: boolean;
+  insightEntry?: SkillInsightCacheEntry | null;
+  insightEnabled?: boolean;
+  onRefreshInsight?: (skill: RegistrySkill, event: React.MouseEvent) => void;
   onClose: () => void;
 }
 
@@ -69,6 +74,9 @@ function getHighRiskAudits(skill: RegistrySkill) {
 export function SkillStoreDetail({
   skill,
   isInstalled,
+  insightEntry,
+  insightEnabled = false,
+  onRefreshInsight,
   onClose,
 }: SkillStoreDetailProps) {
   const { t, i18n } = useTranslation();
@@ -262,6 +270,24 @@ export function SkillStoreDetail({
     if (!skipAuditConfirmation && highRiskAudits.length > 0) {
       setPendingAuditRiskInstall(true);
       return;
+    }
+    const insight = insightEntry?.insight;
+    if (
+      insight &&
+      insight.verdict !== "recommended" &&
+      typeof window.confirm === "function"
+    ) {
+      const confirmed = window.confirm(
+        t("skill.insightInstallConfirm", {
+          verdict: t(`skill.insightVerdict.${insight.verdict}`),
+          reason: insight.verdictReason,
+          defaultValue:
+            "{{verdict}}: {{reason}}\n\nImport this skill anyway?",
+        }),
+      );
+      if (!confirmed) {
+        return;
+      }
     }
     setIsInstalling(true);
     try {
@@ -467,6 +493,16 @@ export function SkillStoreDetail({
               )}
             </div>
           </div>
+
+          {insightEnabled && (
+            <SkillInsightPanel
+              skill={skill}
+              insightEntry={insightEntry}
+              insightEnabled={insightEnabled}
+              onRefreshInsight={onRefreshInsight}
+              className="mb-4"
+            />
+          )}
 
           {/* SKILL.md content rendered as markdown */}
           {(() => {

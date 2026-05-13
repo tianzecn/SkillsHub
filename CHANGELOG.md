@@ -1,5 +1,19 @@
 ## [Unreleased]
 
+## [0.7.0] - 2026-05-13
+
+### 新增 / Added
+
+- 🧠 **Skill 商店安装前 AI 解读**：Skill 商店新增独立的 AI 解读/导入判断场景，会在拿到完整 `SKILL.md` 内容后生成三档导入建议、核心能力、适用/不适用场景、三类提问示例、依赖/风险摘要与可展开证据，帮助用户在导入前判断 skill 是否值得安装
+  - **Pre-Install AI Skill Insights**: The Skill Store now has a dedicated AI insight/import-decision scenario that analyzes complete `SKILL.md` content before import and produces a three-level recommendation, core capability summary, fit/non-fit scenarios, three kinds of prompt examples, dependency/risk notes, and expandable evidence.
+- ⚙️ **Skill 解读独立模型与缓存**：新增 `skillInsight` AI 使用场景，可在 AI 设置中单独选择模型；解读结果按来源、slug、内容 hash、语言与提示词版本缓存，内容或语言变化会自动失效，并支持后台预生成与手动刷新
+  - **Dedicated Skill Insight Model and Cache**: Added a separate `skillInsight` AI usage scenario with per-scenario model selection. Insight results are cached by source, slug, content hash, language, and prompt version, invalidating automatically when content or language changes, with background pre-generation and manual refresh support.
+
+### 优化 / Changed
+
+- 🧩 **Skill 商店列表体验优化**：商店卡片改为紧凑列表行，结构化解读在列表与详情页共用一致组件；列表中保留完整判断与三类可逐条复制的测试提问示例，注意事项和证据移到详情页折叠查看，减少列表空间占用
+  - **Skill Store List Experience**: Store cards now use compact list rows and share the same structured insight component between list and detail views. The list keeps the full decision summary and individually copyable test prompts, while notes and evidence remain available from the detail view to reduce row height.
+
 ## [0.6.0] - 2026-05-10
 
 ### 新增 / Added

@@ -152,7 +152,8 @@ export type AIUsageScenario =
   | "quickAdd"
   | "promptTest"
   | "imageTest"
-  | "translation";
+  | "translation"
+  | "skillInsight";
 
 export type ScenarioModelDefaults = Partial<Record<AIUsageScenario, string>>;
 
@@ -292,6 +293,8 @@ interface SettingsState {
   skillInstallMethod: "symlink" | "copy";
   autoScanInstalledSkills: boolean;
   autoScanStoreSkillsBeforeInstall: boolean;
+  skillInsightAutoGenerateEnabled: boolean;
+  skillInsightAutoGenerateConfirmed: boolean;
   skillsShApiKey: string;
 
   // Actions
@@ -377,6 +380,8 @@ interface SettingsState {
   setSkillInstallMethod: (method: "symlink" | "copy") => void;
   setAutoScanInstalledSkills: (enabled: boolean) => void;
   setAutoScanStoreSkillsBeforeInstall: (enabled: boolean) => void;
+  setSkillInsightAutoGenerateEnabled: (enabled: boolean) => void;
+  setSkillInsightAutoGenerateConfirmed: (confirmed: boolean) => void;
   setSkillsShApiKey: (apiKey: string) => void;
 }
 
@@ -473,6 +478,8 @@ export const useSettingsStore = create<SettingsState>()(
         skillInstallMethod: "symlink" as const,
         autoScanInstalledSkills: false,
         autoScanStoreSkillsBeforeInstall: false,
+        skillInsightAutoGenerateEnabled: false,
+        skillInsightAutoGenerateConfirmed: false,
         skillsShApiKey: "",
 
         setCreationMode: (mode) => setTouched({ creationMode: mode }),
@@ -916,6 +923,10 @@ export const useSettingsStore = create<SettingsState>()(
           setTouched({ autoScanInstalledSkills: enabled }),
         setAutoScanStoreSkillsBeforeInstall: (enabled) =>
           setTouched({ autoScanStoreSkillsBeforeInstall: enabled }),
+        setSkillInsightAutoGenerateEnabled: (enabled) =>
+          setTouched({ skillInsightAutoGenerateEnabled: enabled }),
+        setSkillInsightAutoGenerateConfirmed: (confirmed) =>
+          setTouched({ skillInsightAutoGenerateConfirmed: confirmed }),
         setSkillsShApiKey: (apiKey) => setTouched({ skillsShApiKey: apiKey }),
       };
     },
@@ -960,6 +971,12 @@ export const useSettingsStore = create<SettingsState>()(
         }
         if (typeof next.autoScanStoreSkillsBeforeInstall !== "boolean") {
           next.autoScanStoreSkillsBeforeInstall = false;
+        }
+        if (typeof next.skillInsightAutoGenerateEnabled !== "boolean") {
+          next.skillInsightAutoGenerateEnabled = false;
+        }
+        if (typeof next.skillInsightAutoGenerateConfirmed !== "boolean") {
+          next.skillInsightAutoGenerateConfirmed = false;
         }
         if (typeof next.skillsShApiKey !== "string") {
           next.skillsShApiKey = "";

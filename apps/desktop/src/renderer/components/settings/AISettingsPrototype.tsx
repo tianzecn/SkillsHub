@@ -198,6 +198,12 @@ export function AISettingsPrototype() {
         "translation",
         "chat",
       ),
+      skillInsight: resolveScenarioModel(
+        aiModels,
+        settings.scenarioModelDefaults,
+        "skillInsight",
+        "chat",
+      ),
     }),
     [aiModels, settings.scenarioModelDefaults],
   );
@@ -276,6 +282,18 @@ export function AISettingsPrototype() {
         )}`,
         tone: resolvedScenarioModels.translation ? "ready" : "warning",
         icon: LanguagesIcon,
+      },
+      {
+        title: t("settings.aiWorkbenchScenarioSkillInsight"),
+        value: resolvedScenarioModels.skillInsight
+          ? t("settings.aiWorkbenchEnabled")
+          : t("settings.aiWorkbenchNotConfigured"),
+        detail: `${t("settings.aiWorkbenchUsingLabel")}: ${getModelDisplayName(
+          resolvedScenarioModels.skillInsight,
+          t("settings.aiWorkbenchNotConfigured"),
+        )}`,
+        tone: resolvedScenarioModels.skillInsight ? "ready" : "warning",
+        icon: BrainIcon,
       },
       {
         title: t("settings.aiWorkbenchScenarioQuickAdd"),
@@ -771,7 +789,16 @@ export function AISettingsPrototype() {
 
       <AdvancedSection
         translationMode={settings.translationMode}
+        skillInsightAutoGenerateEnabled={
+          settings.skillInsightAutoGenerateEnabled
+        }
         onTranslationModeChange={(value) => settings.setTranslationMode(value)}
+        onSkillInsightAutoGenerateChange={(enabled) => {
+          settings.setSkillInsightAutoGenerateEnabled(enabled);
+          if (enabled) {
+            settings.setSkillInsightAutoGenerateConfirmed(true);
+          }
+        }}
         onConfigure={() => openAddModel()}
       />
 

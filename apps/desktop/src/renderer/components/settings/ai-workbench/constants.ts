@@ -94,6 +94,13 @@ export const SCENARIO_DEFINITIONS: ScenarioDefinition[] = [
     type: "chat",
     badgeKey: "settings.aiWorkbenchBadgeTranslation",
   },
+  {
+    key: "skillInsight",
+    labelKey: "settings.aiWorkbenchScenarioSkillInsight",
+    descKey: "settings.aiWorkbenchScenarioSkillInsightDesc",
+    type: "chat",
+    badgeKey: "settings.aiWorkbenchBadgeSkillInsight",
+  },
 ] satisfies Array<{
   key: AIUsageScenario;
   labelKey: string;

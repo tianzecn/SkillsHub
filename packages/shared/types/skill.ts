@@ -212,6 +212,40 @@ export interface SkillStoreAuditResult {
   categories?: string[];
 }
 
+export type SkillInsightVerdict = "recommended" | "caution" | "not-recommended";
+export type SkillInsightConfidence = "high" | "medium" | "low";
+export type SkillInsightExampleKind = "explicit" | "natural" | "boundary";
+
+export interface SkillInsightEvidence {
+  label: string;
+  quote: string;
+  source?: string;
+}
+
+export interface SkillInsightExamples {
+  explicit: string[];
+  natural: string[];
+  boundary: string[];
+}
+
+export interface SkillInsight {
+  version: number;
+  language: string;
+  generatedAt: number;
+  contentHash: string;
+  verdict: SkillInsightVerdict;
+  verdictReason: string;
+  capabilitySummary: string;
+  bestFor: string[];
+  notFor: string[];
+  triggerGuidance: string[];
+  promptExamples: SkillInsightExamples;
+  prerequisites: string[];
+  riskNotes: string[];
+  confidence: SkillInsightConfidence;
+  evidence: SkillInsightEvidence[];
+}
+
 export type SkillsShCatalogView = "trending" | "all-time" | "hot" | "curated";
 
 export interface SkillsShStoreRequest {

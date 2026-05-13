@@ -55,6 +55,10 @@ import type {
 import { SKILL_CATEGORIES } from "@prompthub/shared/constants/skill-registry";
 import { getSafetyScanAIConfig } from "./detail-utils";
 import { findInstalledRegistrySkill } from "../../services/skill-store-update";
+import {
+  isConfiguredModel,
+  resolveScenarioModel,
+} from "../../services/ai-defaults";
 
 const CATEGORY_ICONS: Record<string, React.ReactNode> = {
   all: <LayoutGridIcon className="w-3.5 h-3.5" />,
@@ -296,6 +300,15 @@ interface LegacySkillsShSearchResponse {
 export function SkillStore() {
   const { t, i18n } = useTranslation();
   const isZh = i18n.language?.startsWith("zh");
+  const insightLanguage = useMemo(() => {
+    const lang = (i18n.language || "").toLowerCase();
+    if (lang.startsWith("zh")) return "中文";
+    if (lang.startsWith("ja")) return "日本語";
+    if (lang.startsWith("fr")) return "Français";
+    if (lang.startsWith("de")) return "Deutsch";
+    if (lang.startsWith("es")) return "Español";
+    return "English";
+  }, [i18n.language]);
 
   const loadRegistry = useSkillStore((state) => state.loadRegistry);
   const storeCategory = useSkillStore((state) => state.storeCategory) ?? "all";
@@ -337,6 +350,14 @@ export function SkillStore() {
   const setRemoteStoreEntry = useSkillStore(
     (state) => state.setRemoteStoreEntry,
   );
+  const skillInsightCache = useSkillStore((state) => state.skillInsightCache);
+  const getSkillInsight = useSkillStore((state) => state.getSkillInsight);
+  const generateSkillInsight = useSkillStore(
+    (state) => state.generateSkillInsight,
+  );
+  const refreshSkillInsight = useSkillStore(
+    (state) => state.refreshSkillInsight,
+  );
 
   const [installingSlug, setInstallingSlug] = useState<string | null>(null);
   const [sourceType, setSourceType] =
@@ -367,6 +388,24 @@ export function SkillStore() {
     (state) => state.autoScanStoreSkillsBeforeInstall,
   );
   const aiModels = useSettingsStore((state) => state.aiModels);
+  const scenarioModelDefaults = useSettingsStore(
+    (state) => state.scenarioModelDefaults,
+  );
+  const legacyAiApiKey = useSettingsStore((state) => state.aiApiKey);
+  const legacyAiApiUrl = useSettingsStore((state) => state.aiApiUrl);
+  const legacyAiModel = useSettingsStore((state) => state.aiModel);
+  const skillInsightAutoGenerateEnabled = useSettingsStore(
+    (state) => state.skillInsightAutoGenerateEnabled,
+  );
+  const skillInsightAutoGenerateConfirmed = useSettingsStore(
+    (state) => state.skillInsightAutoGenerateConfirmed,
+  );
+  const setSkillInsightAutoGenerateEnabled = useSettingsStore(
+    (state) => state.setSkillInsightAutoGenerateEnabled,
+  );
+  const setSkillInsightAutoGenerateConfirmed = useSettingsStore(
+    (state) => state.setSkillInsightAutoGenerateConfirmed,
+  );
   const skillsShApiKey = useSettingsStore((state) => state.skillsShApiKey);
   const customStoreSourcesSyncKey = useMemo(
     () =>
@@ -379,6 +418,21 @@ export function SkillStore() {
         .join("|"),
     [customStoreSources],
   );
+  const skillInsightModel = useMemo(
+    () =>
+      resolveScenarioModel(
+        aiModels,
+        scenarioModelDefaults,
+        "skillInsight",
+        "chat",
+      ),
+    [aiModels, scenarioModelDefaults],
+  );
+  const isSkillInsightModelConfigured =
+    isConfiguredModel(skillInsightModel) ||
+    Boolean(
+      legacyAiApiKey.trim() && legacyAiApiUrl.trim() && legacyAiModel.trim(),
+    );
 
   useEffect(() => {
     remoteStoreEntriesRef.current = remoteStoreEntries;
@@ -1033,6 +1087,117 @@ export function SkillStore() {
     () => sourceRegistrySkills.filter((skill) => !isSkillInstalled(skill)),
     [isSkillInstalled, sourceRegistrySkills],
   );
+  const skillInsightQueueKey = useMemo(
+    () =>
+      sourceRegistrySkills
+        .map((skill) =>
+          [
+            skill.slug,
+            skill.source_id || "",
+            skill.remote_hash || "",
+            skill.version,
+            skill.content?.length || 0,
+            skill.files?.length || 0,
+          ].join(":"),
+        )
+        .join("|"),
+    [sourceRegistrySkills],
+  );
+
+  useEffect(() => {
+    if (selectedStoreSourceId === "new-custom") return;
+    if (!skillInsightAutoGenerateEnabled) return;
+    if (!isSkillInsightModelConfigured) return;
+
+    let cancelled = false;
+    let nextIndex = 0;
+    const timerId = window.setTimeout(() => {
+      const queue = sourceRegistrySkills.filter((skill) => {
+        const entry = useSkillStore
+          .getState()
+          .getSkillInsight(skill, insightLanguage);
+        return !entry;
+      });
+
+      const runWorker = async () => {
+        while (!cancelled && nextIndex < queue.length) {
+          const current = queue[nextIndex];
+          nextIndex += 1;
+          try {
+            await generateSkillInsight(current, insightLanguage);
+          } catch (error) {
+            console.warn(
+              `Failed to generate skill insight for "${current.slug}":`,
+              error,
+            );
+          }
+        }
+      };
+
+      void Promise.all([runWorker(), runWorker()]);
+    }, 350);
+
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timerId);
+    };
+  }, [
+    generateSkillInsight,
+    insightLanguage,
+    isSkillInsightModelConfigured,
+    selectedStoreSourceId,
+    skillInsightAutoGenerateEnabled,
+    skillInsightQueueKey,
+    sourceRegistrySkills,
+  ]);
+
+  const handleEnableSkillInsight = () => {
+    if (!skillInsightAutoGenerateConfirmed) {
+      const shouldEnable = window.confirm(
+        `${t(
+          "skill.insightConsentTitle",
+          "Enable AI skill insights before importing?",
+        )}\n\n${t(
+          "skill.insightConsentDesc",
+          "PromptHub can send full SKILL.md content for visible store items to your configured AI model to generate import guidance. This may consume tokens.",
+        )}`,
+      );
+
+      if (!shouldEnable) return;
+    }
+
+    setSkillInsightAutoGenerateConfirmed(true);
+    setSkillInsightAutoGenerateEnabled(true);
+  };
+
+  const handleDisableSkillInsight = () => {
+    setSkillInsightAutoGenerateEnabled(false);
+  };
+
+  const getRenderedSkillInsight = useCallback(
+    (skill: RegistrySkill) => getSkillInsight(skill, insightLanguage),
+    [getSkillInsight, insightLanguage, skillInsightCache],
+  );
+
+  const handleRefreshInsight = async (
+    skill: RegistrySkill,
+    e: React.MouseEvent,
+  ) => {
+    e.stopPropagation();
+    try {
+      await refreshSkillInsight(skill, insightLanguage);
+      showToast(t("skill.insightRefreshed", "AI insight refreshed"), "success");
+    } catch (error: unknown) {
+      const message =
+        error instanceof Error && error.message === "AI_NOT_CONFIGURED"
+          ? t(
+              "skill.insightAiNotConfigured",
+              "Configure a Skill insight model in Settings > AI first.",
+            )
+          : getErrorMessage(error);
+      showToast(message, "error");
+    }
+  };
 
   const handleQuickInstall = async (
     skill: RegistrySkill,
@@ -1051,6 +1216,27 @@ export function SkillStore() {
           "warning",
         );
         return;
+      }
+      const insightEntry = useSkillStore
+        .getState()
+        .getSkillInsight(skill, insightLanguage);
+      const insight = insightEntry?.insight;
+      if (
+        insight &&
+        insight.verdict !== "recommended" &&
+        typeof window.confirm === "function"
+      ) {
+        const confirmed = window.confirm(
+          t("skill.insightInstallConfirm", {
+            verdict: t(`skill.insightVerdict.${insight.verdict}`),
+            reason: insight.verdictReason,
+            defaultValue:
+              "{{verdict}}: {{reason}}\n\nImport this skill anyway?",
+          }),
+        );
+        if (!confirmed) {
+          return;
+        }
       }
       if (autoScanBeforeInstall) {
         const report = await window.api.skill.scanSafety({
@@ -1448,6 +1634,67 @@ export function SkillStore() {
             </div>
           )}
 
+        {sourceMeta.showCatalog &&
+          !skillInsightAutoGenerateConfirmed &&
+          !shouldShowInitialLoading && (
+            <div className="rounded-2xl border border-primary/25 bg-primary/5 p-4 text-sm text-foreground space-y-3">
+              <div>
+                <div className="font-medium">
+                  {t(
+                    "skill.insightConsentTitle",
+                    "Enable AI skill insights before importing?",
+                  )}
+                </div>
+                <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+                  {t(
+                    "skill.insightConsentDesc",
+                    "PromptHub can send full SKILL.md content for visible store items to your configured AI model to generate import guidance. This may consume tokens.",
+                  )}
+                </p>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  onClick={handleEnableSkillInsight}
+                  className="rounded-lg bg-primary px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-primary/90"
+                >
+                  {t("skill.enableInsight", "Enable AI insights")}
+                </button>
+                <button
+                  onClick={() => setSkillInsightAutoGenerateConfirmed(true)}
+                  className="rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent"
+                >
+                  {t("common.cancel", "Cancel")}
+                </button>
+              </div>
+            </div>
+          )}
+
+        {sourceMeta.showCatalog &&
+          skillInsightAutoGenerateEnabled &&
+          !isSkillInsightModelConfigured &&
+          !shouldShowInitialLoading && (
+            <div className="rounded-2xl border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive space-y-2">
+              <div className="font-medium">
+                {t(
+                  "skill.insightAiNotConfiguredTitle",
+                  "AI skill insights are enabled but no model is configured",
+                )}
+              </div>
+              <p className="text-xs leading-relaxed">
+                {t(
+                  "skill.insightAiNotConfigured",
+                  "Configure a Skill insight model in Settings > AI first.",
+                )}
+              </p>
+              <button
+                onClick={handleDisableSkillInsight}
+                className="rounded-lg bg-destructive/10 px-3 py-1.5 text-xs font-medium text-destructive transition-colors hover:bg-destructive/20"
+              >
+                {t("skill.disableInsight", "Disable AI insights")}
+              </button>
+            </div>
+          )}
+
         {sourceMeta.showCatalog && (
           <>
             {installed.length > 0 && (
@@ -1460,7 +1707,7 @@ export function SkillStore() {
                     {installed.length}
                   </span>
                 </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+                <div className="space-y-3">
                   {installed.map((skill, index) => (
                     <SkillStoreCard
                       key={skill.slug}
@@ -1468,6 +1715,9 @@ export function SkillStore() {
                       isInstalled={true}
                       hasUpdate={hasPotentialUpdate(skill)}
                       index={index}
+                      insightEntry={getRenderedSkillInsight(skill)}
+                      insightEnabled={skillInsightAutoGenerateEnabled}
+                      onRefreshInsight={handleRefreshInsight}
                       onClick={() => selectRegistrySkill(skill.slug)}
                     />
                   ))}
@@ -1485,7 +1735,7 @@ export function SkillStore() {
                     {recommended.length}
                   </span>
                 </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+                <div className="space-y-3">
                   {recommended.map((skill, index) => (
                     <SkillStoreCard
                       key={skill.slug}
@@ -1493,7 +1743,10 @@ export function SkillStore() {
                       isInstalled={false}
                       index={index}
                       installingSlug={installingSlug}
+                      insightEntry={getRenderedSkillInsight(skill)}
+                      insightEnabled={skillInsightAutoGenerateEnabled}
                       onQuickInstall={handleQuickInstall}
+                      onRefreshInsight={handleRefreshInsight}
                       onClick={() => selectRegistrySkill(skill.slug)}
                     />
                   ))}
@@ -1775,6 +2028,9 @@ export function SkillStore() {
         <SkillStoreDetail
           skill={selectedDetailSkill}
           isInstalled={isSkillInstalled(selectedDetailSkill)}
+          insightEntry={getRenderedSkillInsight(selectedDetailSkill)}
+          insightEnabled={skillInsightAutoGenerateEnabled}
+          onRefreshInsight={(skill, event) => void handleRefreshInsight(skill, event)}
           onClose={() => selectRegistrySkill(null)}
         />
       )}

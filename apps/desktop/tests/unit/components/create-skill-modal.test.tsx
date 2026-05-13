@@ -28,6 +28,7 @@ describe("CreateSkillModal GitHub import", () => {
       customStoreSources: [],
       selectedStoreSourceId: "claude-code",
       remoteStoreEntries: {},
+      skillInsightCache: {},
       translationCache: {},
     });
     useSettingsStore.setState({ aiModels: [] } as never);

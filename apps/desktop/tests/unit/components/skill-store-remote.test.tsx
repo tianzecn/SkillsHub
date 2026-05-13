@@ -36,6 +36,7 @@ const resetSkillStore = () => {
     customStoreSources: [],
     selectedStoreSourceId: "claude-code",
     remoteStoreEntries: {},
+    skillInsightCache: {},
     translationCache: {},
   });
 };

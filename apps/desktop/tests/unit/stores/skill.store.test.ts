@@ -4,10 +4,14 @@ vi.mock("../../../src/renderer/services/ai", () => ({
   chatCompletion: vi.fn(),
 }));
 
+import { chatCompletion } from "../../../src/renderer/services/ai";
 import { useSkillStore } from "../../../src/renderer/stores/skill.store";
+import { useSettingsStore } from "../../../src/renderer/stores/settings.store";
 import { createSkillFixture } from "../../fixtures/skills";
 import { installWindowMocks } from "../../helpers/window";
 import type { RegistrySkill } from "@prompthub/shared/types";
+
+const chatCompletionMock = vi.mocked(chatCompletion);
 
 const resetSkillStore = () => {
   useSkillStore.setState({
@@ -29,6 +33,7 @@ const resetSkillStore = () => {
     customStoreSources: [],
     selectedStoreSourceId: "official",
     remoteStoreEntries: {},
+    skillInsightCache: {},
     translationCache: {},
   });
   localStorage.clear();
@@ -36,7 +41,18 @@ const resetSkillStore = () => {
 
 describe("skill store", () => {
   beforeEach(() => {
+    chatCompletionMock.mockReset();
     resetSkillStore();
+    useSettingsStore.setState({
+      aiProvider: "openai",
+      aiApiKey: "",
+      aiApiUrl: "",
+      aiModel: "gpt-4o",
+      aiModels: [],
+      scenarioModelDefaults: {},
+      skillInsightAutoGenerateEnabled: false,
+      skillInsightAutoGenerateConfirmed: false,
+    } as Partial<ReturnType<typeof useSettingsStore.getState>>);
     installWindowMocks({
       api: {
         skill: {
@@ -975,6 +991,132 @@ description: Use this skill for PDF tasks.
       }
 
       expect(Object.keys(filteredEntries)).toHaveLength(0);
+    });
+  });
+
+  describe("skill insight cache", () => {
+    const createRegistrySkill = (
+      overrides: Partial<RegistrySkill> = {},
+    ): RegistrySkill => ({
+      slug: "demo-skill",
+      name: "Demo Skill",
+      description: "Helps review demo workflows",
+      category: "dev",
+      author: "PromptHub",
+      source_url: "https://example.com/demo-skill",
+      tags: ["demo"],
+      version: "1.0.0",
+      content: [
+        "---",
+        "name: demo-skill",
+        "description: Helps review demo workflows",
+        "---",
+        "",
+        "## Overview",
+        "Use this skill when reviewing demo workflows.",
+      ].join("\n"),
+      ...overrides,
+    });
+
+    const insightJson = JSON.stringify({
+      verdict: "recommended",
+      verdictReason: "Clear workflow and low friction.",
+      capabilitySummary: "Explains when to review demo workflows.",
+      bestFor: ["Demo workflow review"],
+      notFor: ["Production incident response"],
+      triggerGuidance: ["Ask for demo workflow review"],
+      promptExamples: {
+        explicit: ["Use demo-skill to review this flow"],
+        natural: ["Can you review this demo workflow?"],
+        boundary: ["Do not use this for security incidents"],
+      },
+      prerequisites: ["A workflow draft"],
+      riskNotes: ["No obvious risk from the provided content"],
+      confidence: "high",
+      evidence: [
+        {
+          label: "Overview",
+          quote: "Use this skill when reviewing demo workflows.",
+          source: "SKILL.md",
+        },
+      ],
+    });
+
+    it("does not call AI when full SKILL.md content is missing", async () => {
+      const skill = createRegistrySkill({ content: "" });
+
+      const result = await useSkillStore
+        .getState()
+        .generateSkillInsight(skill, "中文");
+
+      const entry = useSkillStore.getState().getSkillInsight(skill, "中文");
+      expect(result).toBeNull();
+      expect(entry?.status).toBe("insufficient");
+      expect(chatCompletionMock).not.toHaveBeenCalled();
+    });
+
+    it("generates and reuses a content-hash scoped insight", async () => {
+      useSettingsStore.setState({
+        aiModels: [
+          {
+            id: "insight-model",
+            type: "chat",
+            provider: "openai",
+            apiKey: "key",
+            apiUrl: "https://api.example.com",
+            model: "gpt-test",
+            isDefault: true,
+          },
+        ],
+        scenarioModelDefaults: { skillInsight: "insight-model" },
+      } as Partial<ReturnType<typeof useSettingsStore.getState>>);
+      chatCompletionMock.mockResolvedValue({ content: insightJson } as any);
+
+      const skill = createRegistrySkill();
+      const first = await useSkillStore
+        .getState()
+        .generateSkillInsight(skill, "中文");
+      const second = await useSkillStore
+        .getState()
+        .generateSkillInsight(skill, "中文");
+
+      expect(first?.verdict).toBe("recommended");
+      expect(second?.capabilitySummary).toBe(
+        "Explains when to review demo workflows.",
+      );
+      expect(chatCompletionMock).toHaveBeenCalledTimes(1);
+      expect(useSkillStore.getState().getSkillInsight(skill, "中文")?.status).toBe(
+        "ready",
+      );
+    });
+
+    it("invalidates the insight cache when skill content changes", async () => {
+      useSettingsStore.setState({
+        aiModels: [
+          {
+            id: "insight-model",
+            type: "chat",
+            provider: "openai",
+            apiKey: "key",
+            apiUrl: "https://api.example.com",
+            model: "gpt-test",
+            isDefault: true,
+          },
+        ],
+        scenarioModelDefaults: { skillInsight: "insight-model" },
+      } as Partial<ReturnType<typeof useSettingsStore.getState>>);
+      chatCompletionMock.mockResolvedValue({ content: insightJson } as any);
+
+      const skill = createRegistrySkill();
+      await useSkillStore.getState().generateSkillInsight(skill, "中文");
+      await useSkillStore.getState().generateSkillInsight(
+        createRegistrySkill({
+          content: `${skill.content}\n\n## Extra\nNew usage boundary.`,
+        }),
+        "中文",
+      );
+
+      expect(chatCompletionMock).toHaveBeenCalledTimes(2);
     });
   });
 });

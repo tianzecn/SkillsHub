@@ -15,6 +15,7 @@ import type {
   SkillSafetyLevel,
   SkillSafetyReport,
   SafetyScanAIConfig,
+  SkillInsight,
 } from "@prompthub/shared/types";
 import {
   BUILTIN_SKILL_REGISTRY,
@@ -34,6 +35,13 @@ import {
   getRegistrySkillUpdateStatus,
   type RegistrySkillUpdateCheck,
 } from "../services/skill-store-update";
+import {
+  buildSkillInsightCacheKey,
+  buildSkillInsightMessages,
+  computeSkillInsightContentHash,
+  hasSkillInsightContent,
+  parseSkillInsightResponse,
+} from "../services/skill-insight";
 import {
   parseSkillsShDetail,
   type SkillsShLeaderboardEntry,
@@ -68,6 +76,8 @@ export const DETAIL_TAB_STATE_CACHE_LIMIT = 100;
 const TRANSLATION_CACHE_MAX_SIZE = 200;
 const TRANSLATION_CACHE_EVICT_COUNT = 50;
 const TRANSLATION_CACHE_TTL = 7 * 24 * 60 * 60 * 1000; // 7 days in ms
+const SKILL_INSIGHT_CACHE_MAX_SIZE = 300;
+const SKILL_INSIGHT_CACHE_EVICT_COUNT = 75;
 const REMOTE_CONTENT_CONCURRENCY = 3;
 const REMOTE_REPO_SYNC_CONCURRENCY = 3;
 
@@ -81,6 +91,21 @@ interface ParsedGitHubSkillLocation {
 interface TranslationCacheEntry {
   value: string;
   timestamp: number;
+}
+
+export type SkillInsightCacheStatus =
+  | "loading"
+  | "ready"
+  | "error"
+  | "insufficient";
+
+export interface SkillInsightCacheEntry {
+  status: SkillInsightCacheStatus;
+  timestamp: number;
+  language: string;
+  contentHash: string;
+  insight?: SkillInsight;
+  error?: string;
 }
 
 export interface ScannedImportResult {
@@ -122,6 +147,26 @@ function pruneTranslationCache(
     const trimmed = entries.slice(
       entries.length -
         (TRANSLATION_CACHE_MAX_SIZE - TRANSLATION_CACHE_EVICT_COUNT),
+    );
+    return Object.fromEntries(trimmed);
+  }
+
+  return Object.fromEntries(entries);
+}
+
+function pruneSkillInsightCache(
+  cache: Record<string, SkillInsightCacheEntry>,
+  readyOnly = false,
+): Record<string, SkillInsightCacheEntry> {
+  const entries = Object.entries(cache).filter(
+    ([, entry]) => !readyOnly || entry.status === "ready",
+  );
+
+  if (entries.length > SKILL_INSIGHT_CACHE_MAX_SIZE) {
+    entries.sort((a, b) => a[1].timestamp - b[1].timestamp);
+    const trimmed = entries.slice(
+      entries.length -
+        (SKILL_INSIGHT_CACHE_MAX_SIZE - SKILL_INSIGHT_CACHE_EVICT_COUNT),
     );
     return Object.fromEntries(trimmed);
   }
@@ -544,6 +589,7 @@ interface SkillState {
       skills: RegistrySkill[];
     }
   >;
+  skillInsightCache: Record<string, SkillInsightCacheEntry>;
 
   // Actions
   loadSkills: () => Promise<void>;
@@ -638,6 +684,20 @@ interface SkillState {
     installed: RegistrySkill[];
     recommended: RegistrySkill[];
   };
+  getSkillInsight: (
+    skill: RegistrySkill,
+    language: string,
+  ) => SkillInsightCacheEntry | null;
+  generateSkillInsight: (
+    skill: RegistrySkill,
+    language: string,
+    options?: { forceRefresh?: boolean },
+  ) => Promise<SkillInsight | null>;
+  refreshSkillInsight: (
+    skill: RegistrySkill,
+    language: string,
+  ) => Promise<SkillInsight | null>;
+  clearSkillInsight: (skill: RegistrySkill, language: string) => void;
 
   // Deployed tracking
   // 已分发到平台的技能名称集合
@@ -687,6 +747,7 @@ export const useSkillStore = create<SkillState>()(
       customStoreSources: [] as SkillStoreSource[],
       selectedStoreSourceId: "official",
       remoteStoreEntries: {},
+      skillInsightCache: {} as Record<string, SkillInsightCacheEntry>,
 
       loadSkills: async () => {
         set({ isLoading: true, error: null });
@@ -1613,6 +1674,153 @@ export const useSkillStore = create<SkillState>()(
         return { installed, recommended };
       },
 
+      getSkillInsight: (skill, language) => {
+        const key = buildSkillInsightCacheKey(skill, language);
+        return get().skillInsightCache[key] ?? null;
+      },
+
+      generateSkillInsight: async (skill, language, options) => {
+        const key = buildSkillInsightCacheKey(skill, language);
+        const contentHash = computeSkillInsightContentHash(skill);
+        const cached = get().skillInsightCache[key];
+        if (!options?.forceRefresh && cached?.status === "ready") {
+          return cached.insight ?? null;
+        }
+        if (!options?.forceRefresh && cached?.status === "loading") {
+          return null;
+        }
+
+        if (!hasSkillInsightContent(skill)) {
+          set((state) => ({
+            skillInsightCache: pruneSkillInsightCache({
+              ...state.skillInsightCache,
+              [key]: {
+                status: "insufficient",
+                timestamp: Date.now(),
+                language,
+                contentHash,
+                error: "SKILL_INSIGHT_INSUFFICIENT_CONTENT",
+              },
+            }),
+          }));
+          return null;
+        }
+
+        const settingsState = useSettingsStore.getState();
+        const insightModel = resolveScenarioModel(
+          settingsState.aiModels,
+          settingsState.scenarioModelDefaults,
+          "skillInsight",
+          "chat",
+        );
+        const config = insightModel
+          ? {
+              provider: insightModel.provider,
+              apiKey: insightModel.apiKey,
+              apiUrl: insightModel.apiUrl,
+              model: insightModel.model,
+              chatParams: insightModel.chatParams as
+                | SkillChatParams
+                | undefined,
+            }
+          : {
+              provider: settingsState.aiProvider,
+              apiKey: settingsState.aiApiKey,
+              apiUrl: settingsState.aiApiUrl,
+              model: settingsState.aiModel,
+            };
+
+        if (!config.apiKey || !config.apiUrl || !config.model) {
+          set((state) => ({
+            skillInsightCache: {
+              ...state.skillInsightCache,
+              [key]: {
+                status: "error",
+                timestamp: Date.now(),
+                language,
+                contentHash,
+                error: "AI_NOT_CONFIGURED",
+              },
+            },
+          }));
+          throw new Error("AI_NOT_CONFIGURED");
+        }
+
+        set((state) => ({
+          skillInsightCache: {
+            ...state.skillInsightCache,
+            [key]: {
+              status: "loading",
+              timestamp: Date.now(),
+              language,
+              contentHash,
+            },
+          },
+        }));
+
+        try {
+          const result = await chatCompletion(
+            config,
+            buildSkillInsightMessages(skill, language),
+            { temperature: 0.2, maxTokens: 2400 },
+          );
+          const content = result.content;
+          if (!content) {
+            throw new Error("SKILL_INSIGHT_EMPTY_RESPONSE");
+          }
+          const insight = parseSkillInsightResponse(
+            content,
+            language,
+            contentHash,
+          );
+          set((state) => ({
+            skillInsightCache: pruneSkillInsightCache({
+              ...state.skillInsightCache,
+              [key]: {
+                status: "ready",
+                timestamp: Date.now(),
+                language,
+                contentHash,
+                insight,
+              },
+            }),
+          }));
+          return insight;
+        } catch (error) {
+          set((state) => ({
+            skillInsightCache: {
+              ...state.skillInsightCache,
+              [key]: {
+                status: "error",
+                timestamp: Date.now(),
+                language,
+                contentHash,
+                error: getErrorMessage(error),
+              },
+            },
+          }));
+          throw error;
+        }
+      },
+
+      refreshSkillInsight: async (skill, language) => {
+        return get().generateSkillInsight(skill, language, {
+          forceRefresh: true,
+        });
+      },
+
+      clearSkillInsight: (skill, language) => {
+        const key = buildSkillInsightCacheKey(skill, language);
+        set((state) => {
+          if (!state.skillInsightCache[key]) {
+            return state;
+          }
+          const nextCache = { ...state.skillInsightCache };
+          delete nextCache[key];
+          return { skillInsightCache: nextCache };
+        });
+      },
+
       // ─── Translation / 翻译 ───
       translationCache: {} as Record<string, TranslationCacheEntry>,
 
@@ -1752,6 +1960,10 @@ This skill helps you write tests.
           customStoreSources: state.customStoreSources,
           selectedStoreSourceId: state.selectedStoreSourceId,
           remoteStoreEntries: filteredEntries,
+          skillInsightCache: pruneSkillInsightCache(
+            state.skillInsightCache,
+            true,
+          ),
         };
       },
     },

@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback, useMemo, memo } from 'react';
-import { StarIcon, HashIcon, PlusIcon, LayoutGridIcon, LinkIcon, SettingsIcon, ChevronLeftIcon, ChevronRightIcon, XIcon, ChevronDownIcon, ChevronUpIcon, ImageIcon, MessageSquareTextIcon, CommandIcon, CuboidIcon, StoreIcon, GlobeIcon, Clock3Icon } from 'lucide-react';
+import { StarIcon, HashIcon, PlusIcon, LayoutGridIcon, LinkIcon, SettingsIcon, ChevronLeftIcon, ChevronRightIcon, XIcon, ChevronDownIcon, ChevronUpIcon, ImageIcon, MessageSquareTextIcon, CommandIcon, CuboidIcon, StoreIcon, GlobeIcon, Clock3Icon, SearchIcon } from 'lucide-react';
 import { useFolderStore } from '../../stores/folder.store';
 import { usePromptStore } from '../../stores/prompt.store';
 import { useSettingsStore } from '../../stores/settings.store';
@@ -144,6 +144,7 @@ export function Sidebar({ currentPage, onNavigate }: SidebarProps) {
     [remoteStoreEntries],
   );
   const [showAllSkillTags, setShowAllSkillTags] = useState(false);
+  const [storeSourceSearchQuery, setStoreSourceSearchQuery] = useState('');
   const promptStats = useMemo(() => buildPromptStats(prompts), [prompts]);
   const skillStats = useMemo(
     () => buildSkillStats(skills, deployedSkillNames),
@@ -155,6 +156,60 @@ export function Sidebar({ currentPage, onNavigate }: SidebarProps) {
   const runtimeCapabilities = getRuntimeCapabilities();
   const webRuntime = isWebRuntime();
   const showModeLabels = !isCollapsed;
+  const normalizedStoreSourceSearchQuery = storeSourceSearchQuery.trim().toLowerCase();
+  const storeSourceMatchesSearch = useCallback(
+    (...values: Array<string | number | null | undefined>) => {
+      if (!normalizedStoreSourceSearchQuery) return true;
+      return values.some((value) =>
+        String(value ?? '').toLowerCase().includes(normalizedStoreSourceSearchQuery),
+      );
+    },
+    [normalizedStoreSourceSearchQuery],
+  );
+  const showOfficialStoreSource = storeSourceMatchesSearch(
+    'official',
+    t('skill.officialStore', '官方商店'),
+  );
+  const showClaudeCodeStoreSource = storeSourceMatchesSearch(
+    'claude-code',
+    'anthropic',
+    t('skill.claudeCodeStore', 'Claude Code 商店'),
+  );
+  const showOpenAiCodexStoreSource = storeSourceMatchesSearch(
+    'openai-codex',
+    'openai',
+    t('skill.openaiCodexStore', 'OpenAI Codex 商店'),
+  );
+  const showHermesAgentStoreSource = storeSourceMatchesSearch(
+    'hermes-agent',
+    'hermes',
+    t('skill.hermesAgentStore', 'Hermes 商店'),
+  );
+  const showHermesAgentOptionalStoreSource = storeSourceMatchesSearch(
+    'hermes-agent-optional',
+    'hermes optional',
+    t('skill.hermesAgentOptionalStore', 'Hermes Optional 商店'),
+  );
+  const showCommunityStoreSource = storeSourceMatchesSearch(
+    'community',
+    'skills.sh',
+    t('skill.communityStore', '社区商店'),
+  );
+  const visibleCustomStoreSources = useMemo(
+    () =>
+      customStoreSources.filter((source) =>
+        storeSourceMatchesSearch(source.name, source.url, source.type),
+      ),
+    [customStoreSources, storeSourceMatchesSearch],
+  );
+  const hasVisibleStoreSources =
+    showOfficialStoreSource ||
+    showClaudeCodeStoreSource ||
+    showOpenAiCodexStoreSource ||
+    showHermesAgentStoreSource ||
+    showHermesAgentOptionalStoreSource ||
+    showCommunityStoreSource ||
+    visibleCustomStoreSources.length > 0;
 
   const confirmLeaveDirtySkillEditor = useCallback(() => {
     const hasUnsaved = (
@@ -748,7 +803,7 @@ export function Sidebar({ currentPage, onNavigate }: SidebarProps) {
       ) : (
         <>
         {/* Skill Navigation */}
-        <div className="flex-shrink-0 flex flex-col px-3 py-2">
+        <div className="flex min-h-0 flex-1 flex-col overflow-hidden px-3 py-2">
           <div className="space-y-1 shrink-0">
             <NavItem
               icon={<CuboidIcon className="w-5 h-5" />}
@@ -822,123 +877,155 @@ export function Sidebar({ currentPage, onNavigate }: SidebarProps) {
                 />
               </>
             )}
-            {runtimeCapabilities.skillStore && storeView === 'store' && !isCollapsed && (
-              <div className="ml-4 pl-3 mt-1 border-l border-sidebar-border/50 space-y-1">
-                <button
-                  onClick={() => {
-                    selectStoreSource('official');
-                    if (currentPage !== 'home') onNavigate('home');
-                  }}
-                  className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors ${
-                    selectedStoreSourceId === 'official'
-                      ? 'bg-sidebar-accent text-sidebar-foreground'
-                      : 'text-sidebar-foreground/60 hover:bg-sidebar-accent/40 hover:text-sidebar-foreground'
-                  }`}
-                >
-                  <StoreIcon className="w-4 h-4" />
-                  <span className="flex-1 text-left truncate">
-                    {t('skill.officialStore', '官方商店')}
-                  </span>
-                  <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-sidebar-accent/80 text-sidebar-foreground/50 border border-white/5">
-                    {BUILTIN_SKILL_REGISTRY.length}
-                  </span>
-                </button>
-                <button
-                  onClick={() => {
-                    selectStoreSource('claude-code');
-                    if (currentPage !== 'home') onNavigate('home');
-                  }}
-                  className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors ${
-                    selectedStoreSourceId === 'claude-code'
-                      ? 'bg-sidebar-accent text-sidebar-foreground'
-                      : 'text-sidebar-foreground/60 hover:bg-sidebar-accent/40 hover:text-sidebar-foreground'
-                  }`}
-                >
-                  <GlobeIcon className="w-4 h-4" />
-                  <span className="flex-1 text-left truncate">
-                    {t('skill.claudeCodeStore', 'Claude Code 商店')}
-                  </span>
-                  <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-sidebar-accent/80 text-sidebar-foreground/50 border border-white/5">
-                    {claudeCodeStoreCount}
-                  </span>
-                </button>
-                <button
-                  onClick={() => {
-                    selectStoreSource('openai-codex');
-                    if (currentPage !== 'home') onNavigate('home');
-                  }}
-                  className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors ${
-                    selectedStoreSourceId === 'openai-codex'
-                      ? 'bg-sidebar-accent text-sidebar-foreground'
-                      : 'text-sidebar-foreground/60 hover:bg-sidebar-accent/40 hover:text-sidebar-foreground'
-                  }`}
-                >
-                  <GlobeIcon className="w-4 h-4" />
-                  <span className="flex-1 text-left truncate">
-                    {t('skill.openaiCodexStore', 'OpenAI Codex 商店')}
-                  </span>
-                  <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-sidebar-accent/80 text-sidebar-foreground/50 border border-white/5">
-                    {openAiCodexStoreCount}
-                  </span>
-                </button>
-                <button
-                  onClick={() => {
-                    selectStoreSource('hermes-agent');
-                    if (currentPage !== 'home') onNavigate('home');
-                  }}
-                  className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors ${
-                    selectedStoreSourceId === 'hermes-agent'
-                      ? 'bg-sidebar-accent text-sidebar-foreground'
-                      : 'text-sidebar-foreground/60 hover:bg-sidebar-accent/40 hover:text-sidebar-foreground'
-                  }`}
-                >
-                  <GlobeIcon className="w-4 h-4" />
-                  <span className="flex-1 text-left truncate">
-                    {t('skill.hermesAgentStore', 'Hermes 商店')}
-                  </span>
-                  <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-sidebar-accent/80 text-sidebar-foreground/50 border border-white/5">
-                    {hermesAgentStoreCount}
-                  </span>
-                </button>
-                <button
-                  onClick={() => {
-                    selectStoreSource('hermes-agent-optional');
-                    if (currentPage !== 'home') onNavigate('home');
-                  }}
-                  className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors ${
-                    selectedStoreSourceId === 'hermes-agent-optional'
-                      ? 'bg-sidebar-accent text-sidebar-foreground'
-                      : 'text-sidebar-foreground/60 hover:bg-sidebar-accent/40 hover:text-sidebar-foreground'
-                  }`}
-                >
-                  <GlobeIcon className="w-4 h-4" />
-                  <span className="flex-1 text-left truncate">
-                    {t('skill.hermesAgentOptionalStore', 'Hermes Optional 商店')}
-                  </span>
-                  <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-sidebar-accent/80 text-sidebar-foreground/50 border border-white/5">
-                    {hermesAgentOptionalStoreCount}
-                  </span>
-                </button>
-                <button
-                  onClick={() => {
-                    selectStoreSource('community');
-                    if (currentPage !== 'home') onNavigate('home');
-                  }}
-                  className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors ${
-                    selectedStoreSourceId === 'community'
-                      ? 'bg-sidebar-accent text-sidebar-foreground'
-                      : 'text-sidebar-foreground/60 hover:bg-sidebar-accent/40 hover:text-sidebar-foreground'
-                  }`}
-                >
-                  <GlobeIcon className="w-4 h-4" />
-                  <span className="flex-1 text-left truncate">
-                    {t('skill.communityStore', '社区商店')}
-                  </span>
-                  <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-sidebar-accent/80 text-sidebar-foreground/50 border border-white/5">
-                    {communityStoreCount}
-                  </span>
-                </button>
-                {customStoreSources.map((source) => (
+          </div>
+          {runtimeCapabilities.skillStore && storeView === 'store' && !isCollapsed && (
+            <div className="ml-4 mt-1 flex min-h-0 flex-1 flex-col overflow-hidden border-l border-sidebar-border/50 pl-3">
+              <div className="relative mb-2 shrink-0">
+                <SearchIcon className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-sidebar-foreground/40" />
+                <input
+                  value={storeSourceSearchQuery}
+                  onChange={(event) => setStoreSourceSearchQuery(event.target.value)}
+                  placeholder={t('skill.searchStoreSources', 'Search stores...')}
+                  className="h-8 w-full rounded-md border border-sidebar-border/70 bg-sidebar-accent/30 pl-8 pr-7 text-xs text-sidebar-foreground outline-none transition-colors placeholder:text-sidebar-foreground/40 focus:border-primary/50 focus:bg-sidebar-accent/50"
+                />
+                {storeSourceSearchQuery ? (
+                  <button
+                    onClick={() => setStoreSourceSearchQuery('')}
+                    className="absolute right-1.5 top-1/2 -translate-y-1/2 rounded p-1 text-sidebar-foreground/40 hover:bg-sidebar-accent hover:text-sidebar-foreground"
+                    title={t('common.clear', '清空')}
+                  >
+                    <XIcon className="h-3 w-3" />
+                  </button>
+                ) : null}
+              </div>
+              <div className="max-h-[calc(100%-2.75rem)] space-y-1 overflow-y-auto overflow-x-hidden overscroll-contain pr-1 scrollbar-hide">
+                {showOfficialStoreSource && (
+                  <button
+                    onClick={() => {
+                      selectStoreSource('official');
+                      if (currentPage !== 'home') onNavigate('home');
+                    }}
+                    className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors ${
+                      selectedStoreSourceId === 'official'
+                        ? 'bg-sidebar-accent text-sidebar-foreground'
+                        : 'text-sidebar-foreground/60 hover:bg-sidebar-accent/40 hover:text-sidebar-foreground'
+                    }`}
+                  >
+                    <StoreIcon className="w-4 h-4" />
+                    <span className="flex-1 text-left truncate">
+                      {t('skill.officialStore', '官方商店')}
+                    </span>
+                    <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-sidebar-accent/80 text-sidebar-foreground/50 border border-white/5">
+                      {BUILTIN_SKILL_REGISTRY.length}
+                    </span>
+                  </button>
+                )}
+                {showClaudeCodeStoreSource && (
+                  <button
+                    onClick={() => {
+                      selectStoreSource('claude-code');
+                      if (currentPage !== 'home') onNavigate('home');
+                    }}
+                    className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors ${
+                      selectedStoreSourceId === 'claude-code'
+                        ? 'bg-sidebar-accent text-sidebar-foreground'
+                        : 'text-sidebar-foreground/60 hover:bg-sidebar-accent/40 hover:text-sidebar-foreground'
+                    }`}
+                  >
+                    <GlobeIcon className="w-4 h-4" />
+                    <span className="flex-1 text-left truncate">
+                      {t('skill.claudeCodeStore', 'Claude Code 商店')}
+                    </span>
+                    <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-sidebar-accent/80 text-sidebar-foreground/50 border border-white/5">
+                      {claudeCodeStoreCount}
+                    </span>
+                  </button>
+                )}
+                {showOpenAiCodexStoreSource && (
+                  <button
+                    onClick={() => {
+                      selectStoreSource('openai-codex');
+                      if (currentPage !== 'home') onNavigate('home');
+                    }}
+                    className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors ${
+                      selectedStoreSourceId === 'openai-codex'
+                        ? 'bg-sidebar-accent text-sidebar-foreground'
+                        : 'text-sidebar-foreground/60 hover:bg-sidebar-accent/40 hover:text-sidebar-foreground'
+                    }`}
+                  >
+                    <GlobeIcon className="w-4 h-4" />
+                    <span className="flex-1 text-left truncate">
+                      {t('skill.openaiCodexStore', 'OpenAI Codex 商店')}
+                    </span>
+                    <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-sidebar-accent/80 text-sidebar-foreground/50 border border-white/5">
+                      {openAiCodexStoreCount}
+                    </span>
+                  </button>
+                )}
+                {showHermesAgentStoreSource && (
+                  <button
+                    onClick={() => {
+                      selectStoreSource('hermes-agent');
+                      if (currentPage !== 'home') onNavigate('home');
+                    }}
+                    className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors ${
+                      selectedStoreSourceId === 'hermes-agent'
+                        ? 'bg-sidebar-accent text-sidebar-foreground'
+                        : 'text-sidebar-foreground/60 hover:bg-sidebar-accent/40 hover:text-sidebar-foreground'
+                    }`}
+                  >
+                    <GlobeIcon className="w-4 h-4" />
+                    <span className="flex-1 text-left truncate">
+                      {t('skill.hermesAgentStore', 'Hermes 商店')}
+                    </span>
+                    <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-sidebar-accent/80 text-sidebar-foreground/50 border border-white/5">
+                      {hermesAgentStoreCount}
+                    </span>
+                  </button>
+                )}
+                {showHermesAgentOptionalStoreSource && (
+                  <button
+                    onClick={() => {
+                      selectStoreSource('hermes-agent-optional');
+                      if (currentPage !== 'home') onNavigate('home');
+                    }}
+                    className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors ${
+                      selectedStoreSourceId === 'hermes-agent-optional'
+                        ? 'bg-sidebar-accent text-sidebar-foreground'
+                        : 'text-sidebar-foreground/60 hover:bg-sidebar-accent/40 hover:text-sidebar-foreground'
+                    }`}
+                  >
+                    <GlobeIcon className="w-4 h-4" />
+                    <span className="flex-1 text-left truncate">
+                      {t('skill.hermesAgentOptionalStore', 'Hermes Optional 商店')}
+                    </span>
+                    <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-sidebar-accent/80 text-sidebar-foreground/50 border border-white/5">
+                      {hermesAgentOptionalStoreCount}
+                    </span>
+                  </button>
+                )}
+                {showCommunityStoreSource && (
+                  <button
+                    onClick={() => {
+                      selectStoreSource('community');
+                      if (currentPage !== 'home') onNavigate('home');
+                    }}
+                    className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors ${
+                      selectedStoreSourceId === 'community'
+                        ? 'bg-sidebar-accent text-sidebar-foreground'
+                        : 'text-sidebar-foreground/60 hover:bg-sidebar-accent/40 hover:text-sidebar-foreground'
+                    }`}
+                  >
+                    <GlobeIcon className="w-4 h-4" />
+                    <span className="flex-1 text-left truncate">
+                      {t('skill.communityStore', '社区商店')}
+                    </span>
+                    <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-sidebar-accent/80 text-sidebar-foreground/50 border border-white/5">
+                      {communityStoreCount}
+                    </span>
+                  </button>
+                )}
+                {visibleCustomStoreSources.map((source) => (
                   <button
                     key={source.id}
                     onClick={() => {
@@ -965,30 +1052,32 @@ export function Sidebar({ currentPage, onNavigate }: SidebarProps) {
                     )}
                   </button>
                 ))}
-                <button
-                  onClick={() => {
-                    selectStoreSource('new-custom');
-                    if (currentPage !== 'home') onNavigate('home');
-                  }}
-                  className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg border border-dashed text-sm transition-colors ${
-                    selectedStoreSourceId === 'new-custom'
-                      ? 'border-primary text-primary bg-primary/5'
-                      : 'border-sidebar-border/70 text-sidebar-foreground/50 hover:border-primary/50 hover:text-sidebar-foreground hover:bg-sidebar-accent/20'
-                  }`}
-                >
-                  <PlusIcon className="w-4 h-4" />
-                  <span className="truncate">{t('skill.addStoreSource', '添加商店')}</span>
-                </button>
+                {!hasVisibleStoreSources && (
+                  <div className="px-3 py-3 text-xs text-sidebar-foreground/40">
+                    {t('common.noResults', 'No results')}
+                  </div>
+                )}
               </div>
-            )}
-          </div>
+              <button
+                onClick={() => {
+                  selectStoreSource('new-custom');
+                  if (currentPage !== 'home') onNavigate('home');
+                }}
+                className={`mt-1 w-full shrink-0 flex items-center gap-2 px-3 py-2 rounded-lg border border-dashed text-sm transition-colors ${
+                  selectedStoreSourceId === 'new-custom'
+                    ? 'border-primary text-primary bg-primary/5'
+                    : 'border-sidebar-border/70 text-sidebar-foreground/50 hover:border-primary/50 hover:text-sidebar-foreground hover:bg-sidebar-accent/20'
+                }`}
+              >
+                <PlusIcon className="w-4 h-4" />
+                <span className="truncate">{t('skill.addStoreSource', '添加商店')}</span>
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Skill Tags Section - Mirrors prompt tags behavior (resize, collapse, popover) */}
-        <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
-          {/* Spacer to push tags to bottom */}
-          <div className="flex-1" />
-
+        <div className="shrink-0 flex flex-col overflow-hidden">
           {/* Resize Handle */}
           {uniqueSkillTags.length > 0 && !isCollapsed && !isSkillTagsCollapsed && (
             <div 
