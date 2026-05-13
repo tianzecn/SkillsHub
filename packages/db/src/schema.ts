@@ -111,6 +111,17 @@ CREATE TABLE IF NOT EXISTS skill_versions (
   UNIQUE(skill_id, version)
 );
 
+CREATE TABLE IF NOT EXISTS skill_insight_cache (
+  cache_key TEXT PRIMARY KEY,
+  status TEXT NOT NULL CHECK(status IN ('ready')),
+  language TEXT NOT NULL,
+  content_hash TEXT NOT NULL,
+  insight_json TEXT NOT NULL,
+  error TEXT,
+  created_at INTEGER NOT NULL,
+  updated_at INTEGER NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS users (
   id TEXT PRIMARY KEY,
   username TEXT NOT NULL UNIQUE,
@@ -156,6 +167,8 @@ CREATE INDEX IF NOT EXISTS idx_skills_visibility ON skills(visibility);
 CREATE INDEX IF NOT EXISTS idx_skills_favorite ON skills(is_favorite);
 CREATE UNIQUE INDEX IF NOT EXISTS idx_skills_name_lower ON skills(LOWER(name));
 CREATE INDEX IF NOT EXISTS idx_skill_versions_skill ON skill_versions(skill_id);
+CREATE INDEX IF NOT EXISTS idx_skill_insight_cache_updated ON skill_insight_cache(updated_at DESC);
+CREATE INDEX IF NOT EXISTS idx_skill_insight_cache_language ON skill_insight_cache(language);
 CREATE UNIQUE INDEX IF NOT EXISTS idx_users_username_lower ON users(LOWER(username));
 CREATE INDEX IF NOT EXISTS idx_users_role ON users(role);
 CREATE INDEX IF NOT EXISTS idx_refresh_tokens_user ON refresh_tokens(user_id);

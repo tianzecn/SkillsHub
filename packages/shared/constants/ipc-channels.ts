@@ -90,6 +90,9 @@ export const IPC_CHANNELS = {
   SKILL_FETCH_REMOTE_CONTENT: "skill:fetchRemoteContent",
   SKILL_FETCH_GITHUB_TARBALL: "skill:fetchGithubTarball",
   SKILL_CLONE_GITHUB_DIRECTORY: "skill:cloneGithubDirectory",
+  SKILL_INSIGHT_CACHE_GET: "skill:insightCache:get",
+  SKILL_INSIGHT_CACHE_SAVE: "skill:insightCache:save",
+  SKILL_INSIGHT_CACHE_DELETE: "skill:insightCache:delete",
 
   // Skill Local Repo Storage
   SKILL_LIST_LOCAL_FILES: "skill:listLocalFiles",

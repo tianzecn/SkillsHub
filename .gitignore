@@ -40,6 +40,7 @@ yarn.lock
 .idea/
 .vscode/
 .cursor/
+.history/
 *.swp
 *.swo
 .windsurfrules

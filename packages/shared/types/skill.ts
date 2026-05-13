@@ -246,6 +246,21 @@ export interface SkillInsight {
   evidence: SkillInsightEvidence[];
 }
 
+export type SkillInsightCacheStatus =
+  | "loading"
+  | "ready"
+  | "error"
+  | "insufficient";
+
+export interface SkillInsightCacheEntry {
+  status: SkillInsightCacheStatus;
+  timestamp: number;
+  language: string;
+  contentHash: string;
+  insight?: SkillInsight;
+  error?: string;
+}
+
 export type SkillsShCatalogView = "trending" | "all-time" | "hot" | "curated";
 
 export interface SkillsShStoreRequest {

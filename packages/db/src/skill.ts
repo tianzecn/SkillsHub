@@ -7,6 +7,8 @@ import type {
   SkillVersion,
   SkillFileSnapshot,
   SkillSafetyReport,
+  SkillInsight,
+  SkillInsightCacheEntry,
 } from "@prompthub/shared/types";
 
 interface SkillRow {
@@ -57,9 +59,23 @@ interface SkillVersionRow {
   created_at: number;
 }
 
+interface SkillInsightCacheRow {
+  cache_key: string;
+  status: SkillInsightCacheEntry["status"];
+  language: string;
+  content_hash: string;
+  insight_json: string;
+  error: string | null;
+  created_at: number;
+  updated_at: number;
+}
+
 function parseJsonArray<T>(value: string | null | undefined): T[] | undefined {
   return value ? (JSON.parse(value) as T[]) : undefined;
 }
+
+const SKILL_INSIGHT_CACHE_MAX_SIZE = 300;
+const SKILL_INSIGHT_CACHE_EVICT_COUNT = 75;
 
 export class SkillDB {
   constructor(private db: Database.Database) {}
@@ -588,6 +604,93 @@ export class SkillDB {
     txn();
   }
 
+  getSkillInsightCache(): Record<string, SkillInsightCacheEntry> {
+    const rows = this.db
+      .prepare(
+        "SELECT * FROM skill_insight_cache WHERE status = 'ready' ORDER BY updated_at DESC",
+      )
+      .all() as SkillInsightCacheRow[];
+
+    const cache: Record<string, SkillInsightCacheEntry> = {};
+    for (const row of rows) {
+      const entry = this.rowToSkillInsightCacheEntry(row);
+      if (entry) {
+        cache[row.cache_key] = entry;
+      }
+    }
+    return cache;
+  }
+
+  saveSkillInsightCacheEntries(
+    cache: Record<string, SkillInsightCacheEntry>,
+  ): void {
+    const entries = Object.entries(cache).filter(
+      ([key, entry]) =>
+        key.trim().length > 0 && entry.status === "ready" && !!entry.insight,
+    );
+    if (entries.length === 0) {
+      return;
+    }
+
+    const txn = this.db.transaction(() => {
+      const stmt = this.db.prepare(`
+        INSERT OR REPLACE INTO skill_insight_cache (
+          cache_key, status, language, content_hash, insight_json, error,
+          created_at, updated_at
+        ) VALUES (
+          @cache_key, @status, @language, @content_hash, @insight_json, @error,
+          @created_at, @updated_at
+        )
+      `);
+
+      for (const [key, entry] of entries) {
+        stmt.run({
+          "@cache_key": key,
+          "@status": "ready",
+          "@language": entry.language,
+          "@content_hash": entry.contentHash,
+          "@insight_json": JSON.stringify(entry.insight),
+          "@error": entry.error ?? null,
+          "@created_at": entry.timestamp,
+          "@updated_at": entry.timestamp,
+        });
+      }
+
+      this.pruneSkillInsightCache();
+    });
+    txn();
+  }
+
+  deleteSkillInsightCacheEntry(key: string): boolean {
+    const result = this.db
+      .prepare("DELETE FROM skill_insight_cache WHERE cache_key = ?")
+      .run(key);
+    return result.changes > 0;
+  }
+
+  private pruneSkillInsightCache(): void {
+    const countRow = this.db
+      .prepare("SELECT COUNT(*) AS count FROM skill_insight_cache")
+      .get() as { count: number } | undefined;
+    const count = countRow?.count ?? 0;
+    if (count <= SKILL_INSIGHT_CACHE_MAX_SIZE) {
+      return;
+    }
+
+    const deleteCount =
+      count - (SKILL_INSIGHT_CACHE_MAX_SIZE - SKILL_INSIGHT_CACHE_EVICT_COUNT);
+    this.db
+      .prepare(
+        `DELETE FROM skill_insight_cache
+         WHERE cache_key IN (
+           SELECT cache_key FROM skill_insight_cache
+           ORDER BY updated_at ASC
+           LIMIT ?
+         )`,
+      )
+      .run(deleteCount);
+  }
+
   insertSkillDirect(skill: Skill): void {
     const safetyReport = skill.safetyReport;
 
@@ -734,6 +837,24 @@ export class SkillDB {
       original_tags: parseJsonArray<string>(row.original_tags),
       safetyReport,
     };
+  }
+
+  private rowToSkillInsightCacheEntry(
+    row: SkillInsightCacheRow,
+  ): SkillInsightCacheEntry | null {
+    try {
+      const insight = JSON.parse(row.insight_json) as SkillInsight;
+      return {
+        status: "ready",
+        timestamp: row.updated_at,
+        language: row.language,
+        contentHash: row.content_hash,
+        insight,
+        ...(row.error !== null && { error: row.error }),
+      };
+    } catch {
+      return null;
+    }
   }
 
   /**

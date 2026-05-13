@@ -73,6 +73,8 @@ const CATEGORY_ICONS: Record<string, React.ReactNode> = {
   meta: <WandIcon className="w-3.5 h-3.5" />,
 };
 
+const noopLoadSkillInsightCache = async (): Promise<void> => undefined;
+
 const CUSTOM_SOURCE_TYPE_OPTIONS: Array<{
   value: Extract<
     SkillStoreSource["type"],
@@ -351,6 +353,9 @@ export function SkillStore() {
     (state) => state.setRemoteStoreEntry,
   );
   const skillInsightCache = useSkillStore((state) => state.skillInsightCache);
+  const loadSkillInsightCache =
+    useSkillStore((state) => state.loadSkillInsightCache) ??
+    noopLoadSkillInsightCache;
   const getSkillInsight = useSkillStore((state) => state.getSkillInsight);
   const generateSkillInsight = useSkillStore(
     (state) => state.generateSkillInsight,
@@ -447,6 +452,10 @@ export function SkillStore() {
       void loadRegistry();
     }
   }, [loadRegistry]);
+
+  useEffect(() => {
+    void loadSkillInsightCache();
+  }, [loadSkillInsightCache]);
 
   const installedSlugs = useMemo(() => {
     return skills

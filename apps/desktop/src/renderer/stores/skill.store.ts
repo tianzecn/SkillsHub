@@ -16,6 +16,7 @@ import type {
   SkillSafetyReport,
   SafetyScanAIConfig,
   SkillInsight,
+  SkillInsightCacheEntry,
 } from "@prompthub/shared/types";
 import {
   BUILTIN_SKILL_REGISTRY,
@@ -64,6 +65,10 @@ export type SkillViewMode = "gallery" | "list";
 export type SkillStoreView = "my-skills" | "distribution" | "store";
 
 export type SkillDetailTab = "preview" | "code" | "files";
+export type {
+  SkillInsightCacheEntry,
+  SkillInsightCacheStatus,
+} from "@prompthub/shared/types";
 
 export interface SkillDetailTabState {
   activeTab: SkillDetailTab;
@@ -92,21 +97,6 @@ interface ParsedGitHubSkillLocation {
 interface TranslationCacheEntry {
   value: string;
   timestamp: number;
-}
-
-export type SkillInsightCacheStatus =
-  | "loading"
-  | "ready"
-  | "error"
-  | "insufficient";
-
-export interface SkillInsightCacheEntry {
-  status: SkillInsightCacheStatus;
-  timestamp: number;
-  language: string;
-  contentHash: string;
-  insight?: SkillInsight;
-  error?: string;
 }
 
 export interface ScannedImportResult {
@@ -173,6 +163,53 @@ function pruneSkillInsightCache(
   }
 
   return Object.fromEntries(entries);
+}
+
+function mergeSkillInsightCaches(
+  databaseCache: Record<string, SkillInsightCacheEntry>,
+  memoryCache: Record<string, SkillInsightCacheEntry>,
+): Record<string, SkillInsightCacheEntry> {
+  const merged = { ...databaseCache };
+  for (const [key, entry] of Object.entries(memoryCache)) {
+    const existing = merged[key];
+    if (!existing || entry.timestamp >= existing.timestamp) {
+      merged[key] = entry;
+    }
+  }
+  return pruneSkillInsightCache(merged);
+}
+
+function selectReadySkillInsightCache(
+  cache: Record<string, SkillInsightCacheEntry>,
+): Record<string, SkillInsightCacheEntry> {
+  return Object.fromEntries(
+    Object.entries(cache).filter(
+      ([, entry]) => entry.status === "ready" && !!entry.insight,
+    ),
+  );
+}
+
+async function saveReadySkillInsightCacheToDatabase(
+  cache: Record<string, SkillInsightCacheEntry>,
+): Promise<void> {
+  const readyCache = selectReadySkillInsightCache(cache);
+  if (Object.keys(readyCache).length === 0) {
+    return;
+  }
+
+  try {
+    await window.api.skill.saveInsightCacheEntries?.(readyCache);
+  } catch (error) {
+    console.warn("Failed to persist skill insight cache:", error);
+  }
+}
+
+async function deleteSkillInsightCacheFromDatabase(key: string): Promise<void> {
+  try {
+    await window.api.skill.deleteInsightCacheEntry?.(key);
+  } catch (error) {
+    console.warn("Failed to delete persisted skill insight cache entry:", error);
+  }
 }
 
 function getErrorMessage(error: unknown): string {
@@ -660,6 +697,7 @@ interface SkillState {
     }
   >;
   skillInsightCache: Record<string, SkillInsightCacheEntry>;
+  isSkillInsightCacheHydrated: boolean;
 
   // Actions
   loadSkills: () => Promise<void>;
@@ -758,6 +796,7 @@ interface SkillState {
     skill: RegistrySkill,
     language: string,
   ) => SkillInsightCacheEntry | null;
+  loadSkillInsightCache: () => Promise<void>;
   generateSkillInsight: (
     skill: RegistrySkill,
     language: string,
@@ -818,11 +857,13 @@ export const useSkillStore = create<SkillState>()(
       selectedStoreSourceId: "official",
       remoteStoreEntries: {},
       skillInsightCache: {} as Record<string, SkillInsightCacheEntry>,
+      isSkillInsightCacheHydrated: false,
 
       loadSkills: async () => {
         set({ isLoading: true, error: null });
         try {
           const skills = normalizeSkills(await window.api.skill.getAll());
+          await get().loadSkillInsightCache();
           set({ skills, isLoading: false });
         } catch (error) {
           console.error("Failed to load skills:", error);
@@ -1549,14 +1590,25 @@ export const useSkillStore = create<SkillState>()(
                 files: undefined,
               },
             ];
-            set((state) => ({
-              skillInsightCache: copyReadySkillInsightCacheForInstalledSkill(
+            let copiedSkillInsightCache: Record<
+              string,
+              SkillInsightCacheEntry
+            > | null = null;
+            set((state) => {
+              const nextCache = copyReadySkillInsightCacheForInstalledSkill(
                 state.skillInsightCache,
                 insightSourceCandidates,
                 newSkill,
                 effectiveContent,
-              ),
-            }));
+              );
+              copiedSkillInsightCache = nextCache;
+              return { skillInsightCache: nextCache };
+            });
+            if (copiedSkillInsightCache) {
+              await saveReadySkillInsightCacheToDatabase(
+                copiedSkillInsightCache,
+              );
+            }
             try {
               await window.api.skill.writeLocalFile(
                 newSkill.id,
@@ -1771,14 +1823,35 @@ export const useSkillStore = create<SkillState>()(
         return get().skillInsightCache[key] ?? null;
       },
 
+      loadSkillInsightCache: async () => {
+        try {
+          const databaseCache = await window.api.skill.getInsightCache?.();
+          set((state) => ({
+            skillInsightCache: mergeSkillInsightCaches(
+              databaseCache ?? {},
+              state.skillInsightCache,
+            ),
+            isSkillInsightCacheHydrated: true,
+          }));
+          await saveReadySkillInsightCacheToDatabase(get().skillInsightCache);
+        } catch (error) {
+          console.warn("Failed to load persisted skill insight cache:", error);
+          set({ isSkillInsightCacheHydrated: true });
+        }
+      },
+
       generateSkillInsight: async (skill, language, options) => {
+        const forceRefresh = options?.forceRefresh ?? false;
         const key = buildSkillInsightCacheKey(skill, language);
         const contentHash = computeSkillInsightContentHash(skill);
+        if (!forceRefresh && !get().isSkillInsightCacheHydrated) {
+          await get().loadSkillInsightCache();
+        }
         const cached = get().skillInsightCache[key];
-        if (!options?.forceRefresh && cached?.status === "ready") {
+        if (!forceRefresh && cached?.status === "ready") {
           return cached.insight ?? null;
         }
-        if (!options?.forceRefresh && cached?.status === "loading") {
+        if (!forceRefresh && cached?.status === "loading") {
           return null;
         }
 
@@ -1865,18 +1938,20 @@ export const useSkillStore = create<SkillState>()(
             language,
             contentHash,
           );
+          const readyEntry: SkillInsightCacheEntry = {
+            status: "ready",
+            timestamp: Date.now(),
+            language,
+            contentHash,
+            insight,
+          };
           set((state) => ({
             skillInsightCache: pruneSkillInsightCache({
               ...state.skillInsightCache,
-              [key]: {
-                status: "ready",
-                timestamp: Date.now(),
-                language,
-                contentHash,
-                insight,
-              },
+              [key]: readyEntry,
             }),
           }));
+          await saveReadySkillInsightCacheToDatabase({ [key]: readyEntry });
           return insight;
         } catch (error) {
           set((state) => ({
@@ -1911,6 +1986,7 @@ export const useSkillStore = create<SkillState>()(
           delete nextCache[key];
           return { skillInsightCache: nextCache };
         });
+        void deleteSkillInsightCacheFromDatabase(key);
       },
 
       // ─── Translation / 翻译 ───

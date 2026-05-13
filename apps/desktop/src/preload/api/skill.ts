@@ -6,6 +6,7 @@ import type {
   SkillSafetyReport,
   SkillSafetyScanInput,
   SkillFileSnapshot,
+  SkillInsightCacheEntry,
   SkillLocalFileEntry,
   SkillLocalFileTreeEntry,
   SkillMCPConfig,
@@ -119,6 +120,14 @@ export const skillApi = {
       branch,
       directoryPath,
     ),
+  getInsightCache: (): Promise<Record<string, SkillInsightCacheEntry>> =>
+    ipcRenderer.invoke(IPC_CHANNELS.SKILL_INSIGHT_CACHE_GET),
+  saveInsightCacheEntries: (
+    cache: Record<string, SkillInsightCacheEntry>,
+  ): Promise<void> =>
+    ipcRenderer.invoke(IPC_CHANNELS.SKILL_INSIGHT_CACHE_SAVE, cache),
+  deleteInsightCacheEntry: (key: string): Promise<boolean> =>
+    ipcRenderer.invoke(IPC_CHANNELS.SKILL_INSIGHT_CACHE_DELETE, key),
   saveToRepo: (skillName: string, sourceDir: string) =>
     ipcRenderer.invoke(IPC_CHANNELS.SKILL_SAVE_TO_REPO, skillName, sourceDir),
   listLocalFiles: (skillId: string): Promise<SkillLocalFileTreeEntry[]> =>

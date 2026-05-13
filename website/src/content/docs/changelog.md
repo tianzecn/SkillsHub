@@ -1,5 +1,12 @@
 ## [Unreleased]
 
+## [0.8.1] - 2026-05-13
+
+### 修复 / Fixed
+
+- 🧠 **Skill 解读缓存持久化**：AI 解读结果会写入本地 SQLite，重启后仍能复用已生成的结构化解读；删除或刷新解读时同步清理持久化缓存，减少重复 token 消耗
+  - **Persistent Skill Insight Cache**: AI insight results are now stored in local SQLite and reused after restart. Deleting or refreshing an insight also clears the persisted cache entry, reducing duplicate token usage.
+
 ## [0.8.0] - 2026-05-13
 
 ### 新增 / Added

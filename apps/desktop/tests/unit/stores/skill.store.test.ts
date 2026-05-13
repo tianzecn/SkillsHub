@@ -7,10 +7,16 @@ vi.mock("../../../src/renderer/services/ai", () => ({
 import { chatCompletion } from "../../../src/renderer/services/ai";
 import { useSkillStore } from "../../../src/renderer/stores/skill.store";
 import { useSettingsStore } from "../../../src/renderer/stores/settings.store";
-import { createInstalledSkillInsightSkill } from "../../../src/renderer/services/skill-insight";
+import {
+  buildSkillInsightCacheKey,
+  createInstalledSkillInsightSkill,
+} from "../../../src/renderer/services/skill-insight";
 import { createSkillFixture } from "../../fixtures/skills";
 import { installWindowMocks } from "../../helpers/window";
-import type { RegistrySkill } from "@prompthub/shared/types";
+import type {
+  RegistrySkill,
+  SkillInsightCacheEntry,
+} from "@prompthub/shared/types";
 
 const chatCompletionMock = vi.mocked(chatCompletion);
 
@@ -35,6 +41,7 @@ const resetSkillStore = () => {
     selectedStoreSourceId: "official",
     remoteStoreEntries: {},
     skillInsightCache: {},
+    isSkillInsightCacheHydrated: false,
     translationCache: {},
   });
   localStorage.clear();
@@ -62,6 +69,9 @@ describe("skill store", () => {
           writeLocalFile: vi.fn(),
           getRepoPath: vi.fn(),
           saveSafetyReport: vi.fn().mockResolvedValue(undefined),
+          getInsightCache: vi.fn().mockResolvedValue({}),
+          saveInsightCacheEntries: vi.fn().mockResolvedValue(undefined),
+          deleteInsightCacheEntry: vi.fn().mockResolvedValue(true),
         },
       },
     });
@@ -1053,6 +1063,62 @@ description: Use this skill for PDF tasks.
       const entry = useSkillStore.getState().getSkillInsight(skill, "中文");
       expect(result).toBeNull();
       expect(entry?.status).toBe("insufficient");
+      expect(chatCompletionMock).not.toHaveBeenCalled();
+    });
+
+    it("hydrates a persisted ready insight before calling AI", async () => {
+      const skill = createRegistrySkill();
+      const key = buildSkillInsightCacheKey(skill, "中文");
+      const persistedEntry: SkillInsightCacheEntry = {
+        status: "ready",
+        timestamp: 123,
+        language: "中文",
+        contentHash: "persisted-hash",
+        insight: {
+          version: 1,
+          language: "中文",
+          generatedAt: 123,
+          contentHash: "persisted-hash",
+          verdict: "recommended",
+          verdictReason: "Persisted and reusable.",
+          capabilitySummary: "Loaded from SQLite cache.",
+          bestFor: ["Avoiding duplicate token spend"],
+          notFor: ["Fresh manual refresh"],
+          triggerGuidance: ["Ask for cached guidance"],
+          promptExamples: {
+            explicit: ["Use demo-skill to review this flow"],
+            natural: ["Can you review this demo workflow?"],
+            boundary: ["Do not use this for unrelated incidents"],
+          },
+          prerequisites: ["Existing SKILL.md snapshot"],
+          riskNotes: ["No obvious risk from the cached content"],
+          confidence: "high",
+          evidence: [
+            {
+              label: "Overview",
+              quote: "Use this skill when reviewing demo workflows.",
+              source: "SKILL.md",
+            },
+          ],
+        },
+      };
+      const getInsightCache = vi
+        .fn()
+        .mockResolvedValue({ [key]: persistedEntry });
+      (window as Window & {
+        api: {
+          skill: {
+            getInsightCache: typeof getInsightCache;
+          };
+        };
+      }).api.skill.getInsightCache = getInsightCache;
+
+      const result = await useSkillStore
+        .getState()
+        .generateSkillInsight(skill, "中文");
+
+      expect(result?.capabilitySummary).toBe("Loaded from SQLite cache.");
+      expect(getInsightCache).toHaveBeenCalledTimes(1);
       expect(chatCompletionMock).not.toHaveBeenCalled();
     });
 

@@ -64,6 +64,8 @@ import { createInstalledSkillInsightSkill } from "../../services/skill-insight";
  */
 export type InstallMode = "copy" | "symlink";
 
+const noopLoadSkillInsightCache = async (): Promise<void> => undefined;
+
 export interface SkillFullDetailPageProps {
   /**
    * When true, the page is rendered inside the SkillSplitView right pane.
@@ -102,6 +104,9 @@ export function SkillFullDetailPage({
   const syncSkillFromRepo = useSkillStore((state) => state.syncSkillFromRepo);
   const saveSafetyReport = useSkillStore((state) => state.saveSafetyReport);
   const skillInsightCache = useSkillStore((state) => state.skillInsightCache);
+  const loadSkillInsightCache =
+    useSkillStore((state) => state.loadSkillInsightCache) ??
+    noopLoadSkillInsightCache;
   const getSkillInsight = useSkillStore((state) => state.getSkillInsight);
   const generateSkillInsight = useSkillStore(
     (state) => state.generateSkillInsight,
@@ -124,6 +129,10 @@ export function SkillFullDetailPage({
   const [copyStatus, setCopyStatus] = useState<Record<string, boolean>>({});
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<SkillDetailTab>("preview");
+
+  useEffect(() => {
+    void loadSkillInsightCache();
+  }, [loadSkillInsightCache]);
 
   const translationMode = useSettingsStore((state) => state.translationMode);
   const skillInstallMethod = useSettingsStore(
